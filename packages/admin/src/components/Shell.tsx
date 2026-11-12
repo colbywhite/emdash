@@ -53,6 +53,7 @@ export interface ShellProps {
 		i18n?: { defaultLocale: string; locales: string[] };
 		version?: string;
 		siteTitle?: string;
+		sites?: AdminManifest["sites"];
 		admin?: AdminManifest["admin"];
 		registryConfigurationError?: AdminManifest["registryConfigurationError"];
 		staging?: boolean;

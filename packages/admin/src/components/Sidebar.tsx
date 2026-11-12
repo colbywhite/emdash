@@ -1,10 +1,10 @@
-import { Sidebar as KumoSidebar, Tooltip, useSidebar } from "@cloudflare/kumo";
+import { DropdownMenu, Sidebar as KumoSidebar, Tooltip, useSidebar } from "@cloudflare/kumo";
 import { isSafePluginPagePath, normalizePluginPagePath } from "@emdash-cms/blocks";
 import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui as useLinguiContext } from "@lingui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Gear, PencilSimple, Storefront, Users } from "@phosphor-icons/react";
+import { CaretUpDown, Check, Gear, PencilSimple, Storefront, Users } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import * as React from "react";
@@ -132,6 +132,10 @@ export interface SidebarNavProps {
 		i18n?: { defaultLocale: string; locales: string[] };
 		version?: string;
 		commit?: string;
+		sites?: Array<{
+			id: string;
+			name: string;
+		}>;
 		marketplace?: boolean;
 		registry?: {
 			aggregatorUrl: string;
@@ -740,24 +744,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	return (
 		<KumoSidebar className="emdash-sidebar" aria-label={t`Admin navigation`}>
 			<KumoSidebar.Header className="px-[11px] transition-[padding] duration-(--sidebar-animation-duration) motion-reduce:transition-none group-not-data-[state=collapsed]/sidebar:px-3.5">
-				<Link
-					to="/"
-					className="flex w-[calc(var(--sidebar-width)-1.75rem)] shrink-0 items-center gap-2 overflow-hidden py-1 ps-2.5 group-data-[state=collapsed]/sidebar:-translate-x-[3px] rtl:group-data-[state=collapsed]/sidebar:translate-x-[3px]"
-				>
-					<BrandIcon
-						logoUrl={manifest.admin?.logo}
-						siteName={manifest.admin?.siteName}
-						className="size-5 shrink-0"
-						aria-hidden="true"
-					/>
-					<span className="grid min-w-0 flex-1 grid-cols-[1fr] transition-[grid-template-columns] duration-(--sidebar-animation-duration) ease-(--sidebar-easing) motion-reduce:transition-none group-data-[state=collapsed]/sidebar:grid-cols-[0fr]">
-						<span className="min-w-0 overflow-hidden">
-							<span className="block w-[calc(var(--sidebar-width)-4.5rem)] truncate font-semibold">
-								{manifest.admin?.siteName || "EmDash"}
-							</span>
-						</span>
-					</span>
-				</Link>
+				<SidebarHeaderBrand sites={manifest.sites} admin={manifest.admin} />
 			</KumoSidebar.Header>
 
 			<KumoSidebar.Content>
@@ -812,5 +799,132 @@ function CustomizeSidebarLink() {
 				/>
 			}
 		/>
+	);
+}
+
+export interface SidebarSite {
+	id: string;
+	name: string;
+}
+
+export const ACTIVE_SITE_STORAGE_KEY = "emdash-active-site";
+
+function readStoredSiteId(): string | null {
+	if (typeof window === "undefined") return null;
+	try {
+		return window.localStorage.getItem(ACTIVE_SITE_STORAGE_KEY);
+	} catch {
+		return null;
+	}
+}
+
+function writeStoredSiteId(siteId: string): void {
+	if (typeof window === "undefined") return;
+	try {
+		window.localStorage.setItem(ACTIVE_SITE_STORAGE_KEY, siteId);
+	} catch {}
+}
+
+export function resolveActiveSite(
+	sites: readonly SidebarSite[],
+	storedSiteId: string | null,
+): SidebarSite | undefined {
+	if (sites.length === 0) return undefined;
+	if (storedSiteId) {
+		const match = sites.find((site) => site.id === storedSiteId);
+		if (match) return match;
+	}
+	return sites[0];
+}
+
+export function SidebarHeaderBrand({
+	sites,
+	admin,
+}: {
+	sites?: readonly SidebarSite[];
+	admin?: {
+		logo?: string;
+		siteName?: string;
+	};
+}) {
+	const { t } = useLingui();
+	const [storedSiteId, setStoredSiteId] = React.useState<string | null>(readStoredSiteId);
+	const activeSite = sites && sites.length > 1 ? resolveActiveSite(sites, storedSiteId) : undefined;
+
+	const handleSelectSite = React.useCallback((nextSiteId: string) => {
+		setStoredSiteId(nextSiteId);
+		writeStoredSiteId(nextSiteId);
+	}, []);
+
+	if (sites && sites.length > 1 && activeSite) {
+		return (
+			<DropdownMenu>
+				<DropdownMenu.Trigger
+					render={
+						<button
+							type="button"
+							aria-label={t`Switch site: ${activeSite.name}`}
+							className="flex min-h-8.5 w-full min-w-0 cursor-pointer items-center gap-2 overflow-hidden rounded-lg py-1 ps-2.5 pe-2 text-start text-sm text-kumo-default outline-none hover:bg-(--sidebar-active-bg) focus-visible:bg-(--sidebar-active-bg) focus-visible:text-kumo-strong data-popup-open:bg-(--sidebar-active-bg)"
+						/>
+					}
+				>
+					<BrandIcon
+						logoUrl={admin?.logo}
+						className="size-5 shrink-0 transition-transform duration-(--sidebar-animation-duration) ease-(--sidebar-easing) motion-reduce:transition-none group-data-[state=collapsed]/sidebar:-translate-x-[3px] rtl:group-data-[state=collapsed]/sidebar:translate-x-[3px]"
+						aria-hidden="true"
+					/>
+					<span className="grid min-w-0 flex-1 grid-cols-[1fr] transition-[grid-template-columns] duration-(--sidebar-animation-duration) ease-(--sidebar-easing) motion-reduce:transition-none group-data-[state=collapsed]/sidebar:grid-cols-[0fr]">
+						<span className="min-w-0 overflow-hidden">
+							<span className="flex w-[calc(var(--sidebar-width)-4.75rem)] items-center justify-between gap-2">
+								<span className="min-w-0 flex-1 truncate font-semibold">{activeSite.name}</span>
+								<CaretUpDown className="size-4 shrink-0 text-kumo-subtle" aria-hidden="true" />
+							</span>
+						</span>
+					</span>
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="start" sideOffset={6} className="w-(--anchor-width) min-w-48">
+					<DropdownMenu.Group>
+						<DropdownMenu.RadioGroup value={activeSite.id} onValueChange={handleSelectSite}>
+							{sites.map((site) => (
+								<DropdownMenu.RadioItem
+									key={site.id}
+									value={site.id}
+									closeOnClick
+									className="cursor-pointer justify-between gap-2"
+								>
+									<span className="truncate">{site.name}</span>
+									{site.id === activeSite.id && (
+										<Check className="size-4 shrink-0 text-kumo-default" aria-hidden="true" />
+									)}
+								</DropdownMenu.RadioItem>
+							))}
+						</DropdownMenu.RadioGroup>
+					</DropdownMenu.Group>
+				</DropdownMenu.Content>
+			</DropdownMenu>
+		);
+	}
+
+	const displaySiteName = admin?.siteName || sites?.[0]?.name || "EmDash";
+
+	return (
+		<Link
+			to="/"
+			className="flex w-[calc(var(--sidebar-width)-1.75rem)] shrink-0 items-center gap-2 overflow-hidden py-1 ps-2.5 group-data-[state=collapsed]/sidebar:-translate-x-[3px] rtl:group-data-[state=collapsed]/sidebar:translate-x-[3px]"
+		>
+			<BrandIcon
+				logoUrl={admin?.logo}
+				siteName={displaySiteName}
+				className="size-5 shrink-0"
+				aria-hidden="true"
+			/>
+			<span className="grid min-w-0 flex-1 grid-cols-[1fr] transition-[grid-template-columns] duration-(--sidebar-animation-duration) ease-(--sidebar-easing) motion-reduce:transition-none group-data-[state=collapsed]/sidebar:grid-cols-[0fr]">
+				<span className="min-w-0 overflow-hidden">
+					<span className="block w-[calc(var(--sidebar-width)-4.5rem)] truncate font-semibold">
+						{displaySiteName}
+					</span>
+				</span>
+			</span>
+		</Link>
 	);
 }

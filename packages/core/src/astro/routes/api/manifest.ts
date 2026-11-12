@@ -121,9 +121,14 @@ export const GET: APIRoute = async ({ locals }) => {
 			}
 		}
 
+		const configuredSites = emdash?.config?.sites?.length
+			? emdash.config.sites.map((site) => ({ id: site.id, name: site.name }))
+			: undefined;
+
 		const manifest: EmDashManifest = emdashManifest
 			? {
 					...emdashManifest,
+					...(configuredSites ? { sites: configuredSites } : {}),
 					siteTitle,
 					timezone: siteTimezone,
 					staging,
@@ -136,6 +141,7 @@ export const GET: APIRoute = async ({ locals }) => {
 					version: VERSION,
 					commit: COMMIT,
 					hash: "default",
+					...(configuredSites ? { sites: configuredSites } : {}),
 					collections: {},
 					plugins: {},
 					siteTitle,

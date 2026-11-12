@@ -153,6 +153,11 @@ export interface AdminManifest {
 	astroVersion?: string;
 	/** Site title used for browser tab titles. */
 	siteTitle?: string;
+	/** Configured sites for multi-site deployments. */
+	sites?: Array<{
+		id: string;
+		name: string;
+	}>;
 	/** IANA timezone used to interpret datetime-local editor values. */
 	timezone?: string;
 	hash: string;

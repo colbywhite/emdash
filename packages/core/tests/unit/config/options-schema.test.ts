@@ -26,6 +26,7 @@ describe("emdash() config validation", () => {
 				sites: [
 					{
 						id: "orange",
+						name: "Orange",
 						database: sqlite({ url: "file:./orange.db" }),
 						storage: local({
 							directory: "./orange-uploads",
@@ -36,6 +37,11 @@ describe("emdash() config validation", () => {
 						imagePlaceholders: false,
 						maxUploadSize: 50 * 1024 * 1024,
 						siteUrl: "https://orange.example.com",
+					},
+					{
+						id: "pink-client-2",
+						name: "Pink Client 2",
+						database: sqlite({ url: "file:./pink.db" }),
 					},
 				],
 			}),
@@ -51,12 +57,29 @@ describe("emdash() config validation", () => {
 		["admin.siteName", { admin: { siteName: 42 } }],
 		["fonts", { fonts: { scripts: "arabic" } }],
 		["imagePlaceholders", { imagePlaceholders: "no" }],
-		["sites[0].id", { sites: [{ id: "", database: sqlite({ url: "file:./orange.db" }) }] }],
-		["sites[0].database", { sites: [{ id: "orange", database: "file:./orange.db" }] }],
+		[
+			"sites[0].id",
+			{ sites: [{ id: "", name: "Orange", database: sqlite({ url: "file:./orange.db" }) }] },
+		],
+		[
+			"sites[0].name",
+			{ sites: [{ id: "orange", name: "", database: sqlite({ url: "file:./orange.db" }) }] },
+		],
+		[
+			"sites[0].database",
+			{ sites: [{ id: "orange", name: "Orange", database: "file:./orange.db" }] },
+		],
 		[
 			"sites[0].maxUploadSize",
 			{
-				sites: [{ id: "orange", database: sqlite({ url: "file:./orange.db" }), maxUploadSize: 0 }],
+				sites: [
+					{
+						id: "orange",
+						name: "Orange",
+						database: sqlite({ url: "file:./orange.db" }),
+						maxUploadSize: 0,
+					},
+				],
 			},
 		],
 	])("names the option path for a wrong %s value", (path, config) => {
@@ -128,5 +151,62 @@ describe("emdash() config validation", () => {
 		expect(unknownOptionWarning("somethingElse")).toBe(
 			"Unknown EmDash config option `somethingElse` is ignored.",
 		);
+	});
+
+	it.each([
+		"Orange",
+		"orange_site",
+		"orange site",
+		"-orange",
+		"orange-",
+		"orange--site",
+		"orange/site",
+		"../orange",
+		"orange.com",
+	])("rejects non-slug site ID %j with the option path", (id) => {
+		const fn = build({
+			sites: [{ id, name: "Orange", database: sqlite({ url: "file:./orange.db" }) }],
+		});
+		expect(fn).toThrow("Site ID must be a URL-safe slug");
+		expect(fn).toThrow("→ at sites[0].id");
+	});
+
+	it.each(["admin", "setup", "api", "auth", "login", "default", "sites"])(
+		"rejects reserved site ID %j with the option path",
+		(id) => {
+			const fn = build({
+				sites: [{ id, name: "Site", database: sqlite({ url: "file:./site.db" }) }],
+			});
+			expect(fn).toThrow(`Site ID "${id}" is reserved`);
+			expect(fn).toThrow("→ at sites[0].id");
+		},
+	);
+
+	it("rejects duplicate site IDs and points at each duplicate index", () => {
+		const db = sqlite({ url: "file:./site.db" });
+		const fn = build({
+			sites: [
+				{ id: "orange", name: "Orange 1", database: db },
+				{ id: "purple", name: "Purple", database: db },
+				{ id: "orange", name: "Orange 2", database: db },
+				{ id: "orange", name: "Orange 3", database: db },
+			],
+		});
+		expect(fn).toThrow(
+			/Duplicate site ID "orange"[\s\S]*→ at sites\[2\]\.id[\s\S]*→ at sites\[3\]\.id/,
+		);
+		expect(fn).not.toThrow("→ at sites[0].id");
+	});
+
+	it("does not emit a duplicate error when repeated site IDs are already invalid or reserved", () => {
+		const db = sqlite({ url: "file:./site.db" });
+		const fn = build({
+			sites: [
+				{ id: "admin", name: "Admin 1", database: db },
+				{ id: "admin", name: "Admin 2", database: db },
+			],
+		});
+		expect(fn).toThrow('Site ID "admin" is reserved');
+		expect(fn).not.toThrow("Duplicate site ID");
 	});
 });

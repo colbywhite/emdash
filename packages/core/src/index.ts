@@ -541,6 +541,9 @@ export {
 	RESERVED_FIELD_SLUGS,
 	RESERVED_COLLECTION_SLUGS,
 } from "./schema/index.js";
+export { BLACKLISTED_SITE_IDS, isBlacklistedSiteId, isValidSiteId } from "./config/site-id.js";
+export type { BlacklistedSiteId, SiteId } from "./config/site-id.js";
+export { isValidUrlSlug, URL_SLUG_PATTERN } from "./utils/url-slug.js";
 
 // Import sources system
 export {

@@ -10,6 +10,7 @@
 import type { ManifestHookEntry, ManifestRouteEntry } from "@emdash-cms/plugin-types";
 
 import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js";
+import type { SiteId } from "../../config/site-id.js";
 import type { RuntimeMigrationConfig } from "../../database/migrations/policy.js";
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
@@ -27,6 +28,7 @@ import type { RegistryConfigOption } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
 import type { HideableAdminNavItem } from "./admin-nav.js";
 
+export type { SiteId } from "../../config/site-id.js";
 export type { RegistryConfig, RegistryConfigOption } from "../../registry/types.js";
 
 export type { ResolvedPlugin };
@@ -323,7 +325,9 @@ export interface EmDashSiteOptions {
 
 export interface EmDashSiteConfig extends EmDashSiteOptions {
 	/** Unique site identifier (e.g., "orange", "purple", "pink"). */
-	id: string;
+	id: SiteId;
+	/** Human-readable site name displayed in the admin UI. */
+	name: string;
 	/** Site-specific database configuration. */
 	database: DatabaseDescriptor;
 }

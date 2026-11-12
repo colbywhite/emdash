@@ -11,6 +11,7 @@
 export type {
 	EmDashHandlers,
 	EmDashManifest,
+	ManifestSite,
 	MediaItem,
 	ContentItem,
 	ManifestCollection,
@@ -34,5 +35,6 @@ export type {
 	EmDashConfig,
 	EmDashSiteConfig,
 	EmDashSiteOptions,
+	SiteId,
 	ResolvedPlugin,
 } from "./integration/runtime.js";

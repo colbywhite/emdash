@@ -22,6 +22,7 @@ describe("EmDashConfig sites", () => {
 			sites: [
 				{
 					id: "orange",
+					name: "Orange",
 					database: sqlite({ url: "file:./orange.db" }),
 					storage: local({ directory: "./orange-uploads", baseUrl: "/_emdash/api/media/file" }),
 					objectCache: memoryCache(),
@@ -35,6 +36,7 @@ describe("EmDashConfig sites", () => {
 				},
 				{
 					id: "purple",
+					name: "Purple",
 					database: sqlite({ url: "file:./purple.db" }),
 				},
 			],
@@ -44,22 +46,33 @@ describe("EmDashConfig sites", () => {
 		expectTypeOf(multiSite.sites).toEqualTypeOf<EmDashSiteConfig[] | undefined>();
 	});
 
-	it("limits site entries to id plus site-specific EmDashSiteOptions", () => {
-		expectTypeOf<Exclude<keyof EmDashSiteConfig, "id">>().toEqualTypeOf<keyof EmDashSiteOptions>();
+	it("limits site entries to id, name, plus site-specific EmDashSiteOptions", () => {
+		expectTypeOf<Exclude<keyof EmDashSiteConfig, "id" | "name">>().toEqualTypeOf<
+			keyof EmDashSiteOptions
+		>();
 
 		// @ts-expect-error -- site entries must configure a database
 		const missingDatabase: EmDashSiteConfig = {
 			id: "orange",
+			name: "Orange",
+		};
+
+		// @ts-expect-error -- site entries must configure a display name
+		const missingName: EmDashSiteConfig = {
+			id: "orange",
+			database: sqlite({ url: "file:./orange.db" }),
 		};
 
 		const withRootOnlyProp: EmDashSiteConfig = {
 			id: "orange",
+			name: "Orange",
 			database: sqlite({ url: "file:./orange.db" }),
 			// @ts-expect-error -- root-only options are not valid on a site entry
 			admin: { siteName: "Not per-site" },
 		};
 
 		expectTypeOf(missingDatabase).not.toBeNever();
+		expectTypeOf(missingName).not.toBeNever();
 		expectTypeOf(withRootOnlyProp).not.toBeNever();
 	});
 });

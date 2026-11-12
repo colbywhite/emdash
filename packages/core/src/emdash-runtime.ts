@@ -3636,11 +3636,16 @@ export class EmDashRuntime {
 			);
 		}
 
+		const sites = this.config.sites?.length
+			? this.config.sites.map((site) => ({ id: site.id, name: site.name }))
+			: undefined;
+
 		return {
 			version: VERSION,
 			commit: COMMIT,
 			astroVersion: this.config.astroVersion,
 			hash: manifestHash,
+			...(sites ? { sites } : {}),
 			collections: manifestCollections,
 			plugins: manifestPlugins,
 			taxonomies: manifestTaxonomies,

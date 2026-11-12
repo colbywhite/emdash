@@ -58,6 +58,7 @@ export type {
 	EmDashConfig,
 	EmDashSiteConfig,
 	EmDashSiteOptions,
+	SiteId,
 	PluginDescriptor,
 	SandboxedPluginDescriptor,
 	ResolvedPlugin,

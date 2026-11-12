@@ -1,6 +1,10 @@
 import { z } from "zod";
 
+import { siteIdSchema } from "../../config/site-id.js";
 import { LOCALE_CODE_PATTERN } from "../../i18n/config.js";
+import { URL_SLUG_PATTERN } from "../../utils/url-slug.js";
+
+export { siteIdSchema };
 
 // ---------------------------------------------------------------------------
 // Role level
@@ -45,6 +49,9 @@ export const offsetPaginationQuery = z
 
 /** Slug pattern: lowercase letters, digits, underscores; starts with letter */
 export const slugPattern = /^[a-z][a-z0-9_]*$/;
+
+/** URL slug pattern: lowercase letters and digits separated by single hyphens */
+export const urlSlugPattern = URL_SLUG_PATTERN;
 
 /** Matches http(s) scheme at start of URL */
 const HTTP_SCHEME_RE = /^https?:\/\//i;

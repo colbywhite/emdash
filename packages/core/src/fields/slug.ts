@@ -1,5 +1,6 @@
 import { z } from "astro/zod";
 
+import { URL_SLUG_PATTERN } from "../utils/url-slug.js";
 import type { FieldDefinition, FieldUIHints } from "./types.js";
 
 export interface SlugOptions {
@@ -9,14 +10,11 @@ export interface SlugOptions {
 	helpText?: string;
 }
 
-// Default slug pattern: lowercase alphanumeric + hyphens
-const DEFAULT_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
 /**
  * Slug field - URL-safe identifier
  */
 export function slug(options: SlugOptions = {}): FieldDefinition<string> {
-	const pattern = options.pattern || DEFAULT_SLUG_PATTERN;
+	const pattern = options.pattern || URL_SLUG_PATTERN;
 	const stringSchema = z.string().regex(pattern, "Invalid slug format");
 
 	// Optional vs required

@@ -14,6 +14,9 @@ import type {
 	EmDashSiteConfig,
 	EmDashSiteOptions,
 } from "../astro/integration/runtime.js";
+import { isValidSiteId, siteIdSchema } from "./site-id.js";
+
+export { BLACKLISTED_SITE_IDS } from "./site-id.js";
 
 function isObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -46,7 +49,8 @@ const siteShape = {
 } satisfies { [K in keyof Required<EmDashSiteOptions>]: z.ZodType };
 
 const siteConfigShape = {
-	id: z.string().min(1),
+	id: siteIdSchema,
+	name: z.string().min(1),
 	database: siteShape.database,
 	migrations: siteShape.migrations.optional(),
 	storage: siteShape.storage.optional(),
@@ -61,7 +65,23 @@ const siteConfigShape = {
 
 const configShape = {
 	...siteShape,
-	sites: z.array(z.object(siteConfigShape)),
+	sites: z.array(z.object(siteConfigShape)).superRefine((sites, ctx) => {
+		const seen = new Set<string>();
+		for (const [index, site] of sites.entries()) {
+			if (!isValidSiteId(site.id)) {
+				continue;
+			}
+			if (seen.has(site.id)) {
+				ctx.addIssue({
+					code: "custom",
+					path: [index, "id"],
+					message: `Duplicate site ID "${site.id}"`,
+				});
+				continue;
+			}
+			seen.add(site.id);
+		}
+	}),
 	plugins: z.array(pluginDescriptor),
 	sandboxed: z.array(pluginDescriptor),
 	sandboxRunner: z.string(),

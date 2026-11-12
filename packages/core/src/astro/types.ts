@@ -8,6 +8,7 @@
 import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
+import type { SiteId } from "../config/site-id.js";
 import type { ContentFieldFilters } from "../content-list-query.js";
 import type { ContentSeoInput } from "../database/repositories/types.js";
 import type {
@@ -144,6 +145,14 @@ export interface ManifestPlugin {
 export type ManifestAuthMode = string;
 
 /**
+ * Configured site summary surfaced in the admin manifest
+ */
+export interface ManifestSite {
+	id: SiteId;
+	name: string;
+}
+
+/**
  * The EmDash manifest provided to the admin UI
  */
 export interface EmDashManifest {
@@ -158,6 +167,8 @@ export interface EmDashManifest {
 	astroVersion?: string;
 	/** Site title used for browser tab titles. */
 	siteTitle?: string;
+	/** Configured sites for multi-site deployments. */
+	sites?: ManifestSite[];
 	/** IANA timezone used by datetime-local controls in the admin. */
 	timezone?: string;
 	collections: Record<string, ManifestCollection>;

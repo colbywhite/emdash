@@ -9,7 +9,11 @@
 
 import { z } from "zod";
 
-import type { EmDashConfig } from "../astro/integration/runtime.js";
+import type {
+	EmDashConfig,
+	EmDashSiteConfig,
+	EmDashSiteOptions,
+} from "../astro/integration/runtime.js";
 
 function isObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -28,13 +32,36 @@ const pluginDescriptor = z.custom<never>(
 
 const stringList = z.array(z.string());
 
-const configShape = {
+const siteShape = {
 	database: descriptor("a database adapter such as sqlite() or d1()"),
 	migrations: z.unknown(),
 	storage: descriptor("a storage adapter such as local() or r2()"),
 	objectCache: descriptor("an object cache adapter such as memoryCache() or kvCache()"),
 	images: z.boolean(),
+	mcp: z.boolean(),
+	maxUploadSize: z.number({ error: "Expected a number of bytes" }).positive(),
 	imagePlaceholders: z.boolean(),
+	siteUrl: z.string(),
+	mediaProviders: z.array(descriptor("a media provider")),
+} satisfies { [K in keyof Required<EmDashSiteOptions>]: z.ZodType };
+
+const siteConfigShape = {
+	id: z.string().min(1),
+	database: siteShape.database,
+	migrations: siteShape.migrations.optional(),
+	storage: siteShape.storage.optional(),
+	objectCache: siteShape.objectCache.optional(),
+	images: siteShape.images.optional(),
+	mcp: siteShape.mcp.optional(),
+	maxUploadSize: siteShape.maxUploadSize.optional(),
+	imagePlaceholders: siteShape.imagePlaceholders.optional(),
+	siteUrl: siteShape.siteUrl.optional(),
+	mediaProviders: siteShape.mediaProviders.optional(),
+} satisfies { [K in keyof Required<EmDashSiteConfig>]: z.ZodType };
+
+const configShape = {
+	...siteShape,
+	sites: z.array(z.object(siteConfigShape)),
 	plugins: z.array(pluginDescriptor),
 	sandboxed: z.array(pluginDescriptor),
 	sandboxRunner: z.string(),
@@ -46,20 +73,16 @@ const configShape = {
 			"Expected an auth provider (an object with an `id`)",
 		),
 	),
-	mcp: z.boolean(),
 	marketplace: z.string(),
 	registry: z.unknown(),
 	updateCheck: z.union(
 		[z.boolean(), z.object({ minimumReleaseAge: z.union([z.string(), z.number()]).optional() })],
 		{ error: "Expected a boolean or `{ minimumReleaseAge }`" },
 	),
-	maxUploadSize: z.number({ error: "Expected a number of bytes" }).positive(),
-	siteUrl: z.string(),
 	allowedOrigins: stringList,
 	trustedProxyHeaders: stringList,
 	middleware: z.unknown(),
 	playground: z.object({ middlewareEntrypoint: z.string() }),
-	mediaProviders: z.array(descriptor("a media provider")),
 	fonts: z.union([z.literal(false), z.object({ scripts: stringList.optional() })], {
 		error: "Expected `false` or `{ scripts: string[] }`",
 	}),

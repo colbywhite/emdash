@@ -56,6 +56,8 @@ import { createViteConfig, resolveAdminDist } from "./vite-config.js";
 // Re-export runtime types and functions
 export type {
 	EmDashConfig,
+	EmDashSiteConfig,
+	EmDashSiteOptions,
 	PluginDescriptor,
 	SandboxedPluginDescriptor,
 	ResolvedPlugin,
@@ -227,6 +229,7 @@ export function buildSerializableConfig(resolvedConfig: EmDashConfig): Record<st
 		database: resolvedConfig.database,
 		migrations: resolvedConfig.migrations,
 		storage: resolvedConfig.storage,
+		sites: resolvedConfig.sites,
 		auth: resolvedConfig.auth,
 		authProviders: resolvedConfig.authProviders,
 		marketplace: resolvedConfig.marketplace,

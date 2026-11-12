@@ -23,6 +23,21 @@ describe("emdash() config validation", () => {
 				toolbar: "client",
 				fonts: false,
 				admin: { siteName: "Agency CMS", footerLabel: false },
+				sites: [
+					{
+						id: "orange",
+						database: sqlite({ url: "file:./orange.db" }),
+						storage: local({
+							directory: "./orange-uploads",
+							baseUrl: "/_emdash/api/media/file",
+						}),
+						mcp: false,
+						images: true,
+						imagePlaceholders: false,
+						maxUploadSize: 50 * 1024 * 1024,
+						siteUrl: "https://orange.example.com",
+					},
+				],
 			}),
 		).not.toThrow();
 	});
@@ -36,6 +51,14 @@ describe("emdash() config validation", () => {
 		["admin.siteName", { admin: { siteName: 42 } }],
 		["fonts", { fonts: { scripts: "arabic" } }],
 		["imagePlaceholders", { imagePlaceholders: "no" }],
+		["sites[0].id", { sites: [{ id: "", database: sqlite({ url: "file:./orange.db" }) }] }],
+		["sites[0].database", { sites: [{ id: "orange", database: "file:./orange.db" }] }],
+		[
+			"sites[0].maxUploadSize",
+			{
+				sites: [{ id: "orange", database: sqlite({ url: "file:./orange.db" }), maxUploadSize: 0 }],
+			},
+		],
 	])("names the option path for a wrong %s value", (path, config) => {
 		expect(build(config)).toThrow(`→ at ${path}`);
 	});

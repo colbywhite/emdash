@@ -173,7 +173,7 @@ export interface PluginDescriptor<TOptions extends object = object> {
 export type SandboxedPluginDescriptor<TOptions extends object = object> =
 	PluginDescriptor<TOptions>;
 
-export interface EmDashConfig {
+export interface EmDashSiteOptions {
 	/**
 	 * Database configuration
 	 *
@@ -250,6 +250,92 @@ export interface EmDashConfig {
 	 * service can fetch it over HTTP.
 	 */
 	images?: boolean;
+	/**
+	 * MCP (Model Context Protocol) server endpoint.
+	 *
+	 * Exposes an MCP Streamable HTTP server at `/_emdash/api/mcp`
+	 * that allows AI agents and tools to interact with the CMS using
+	 * the standardized MCP protocol.
+	 *
+	 * Enabled by default. The endpoint requires bearer token auth, so
+	 * it has no effect unless the user creates an API token and
+	 * configures a client. Set to `false` to disable.
+	 *
+	 * @default true
+	 */
+	mcp?: boolean;
+	/**
+	 * Maximum allowed media file upload size in bytes.
+	 *
+	 * Applies to both direct multipart uploads and signed-URL uploads.
+	 * When unset, defaults to 52_428_800 (50 MB).
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({ maxUploadSize: 100 * 1024 * 1024 }) // 100 MB
+	 * ```
+	 */
+	maxUploadSize?: number;
+	/**
+	 * Generate blurhash and dominant-color placeholders during image upload.
+	 *
+	 * Defaults to `true`. Set to `false` to skip server-side LQIP generation
+	 * while preserving dimensions, validation, and content hashing.
+	 */
+	imagePlaceholders?: boolean;
+	/**
+	 * Public browser-facing origin for the site.
+	 *
+	 * Use when `Astro.url` / `request.url` do not match what users open — common with a
+	 * **TLS-terminating reverse proxy**: the app often sees `http://` on the internal hop
+	 * while the browser uses `https://`, which breaks WebAuthn, CSRF, OAuth, and redirect URLs.
+	 *
+	 * Set to the full origin users type in the address bar (no path), e.g.
+	 * `https://mysite.example.com`. When not set, falls back to environment variables
+	 * `EMDASH_SITE_URL` > `SITE_URL`, then to the request URL's origin.
+	 *
+	 * Replaces `passkeyPublicOrigin` (which only fixed passkeys).
+	 */
+	siteUrl?: string;
+	/**
+	 * Media providers for browsing and uploading media
+	 *
+	 * The local media provider (using storage adapter) is available by default.
+	 * Additional providers can be added for external services like Unsplash,
+	 * Cloudinary, Mux, Cloudflare Images, etc.
+	 *
+	 * @example
+	 * ```ts
+	 * import { cloudflareImages, cloudflareStream } from "@emdash-cms/cloudflare";
+	 * import { unsplash } from "@emdash-cms/provider-unsplash";
+	 *
+	 * emdash({
+	 *   mediaProviders: [
+	 *     cloudflareImages({ accountId: "..." }),
+	 *     cloudflareStream({ accountId: "..." }),
+	 *     unsplash({ accessKey: "..." }),
+	 *   ],
+	 * })
+	 * ```
+	 */
+	mediaProviders?: MediaProviderDescriptor[];
+}
+
+export interface EmDashSiteConfig extends EmDashSiteOptions {
+	/** Unique site identifier (e.g., "orange", "purple", "pink"). */
+	id: string;
+	/** Site-specific database configuration. */
+	database: DatabaseDescriptor;
+}
+
+export interface EmDashConfig extends EmDashSiteOptions {
+	/**
+	 * Per-site configurations for multi-site deployments.
+	 *
+	 * When configured, top-level `database` and `storage` serve as the admin
+	 * database and storage, while each entry configures an isolated site.
+	 */
+	sites?: EmDashSiteConfig[];
 	/**
 	 * Trusted plugins to load (run in main isolate)
 	 *
@@ -355,21 +441,6 @@ export interface EmDashConfig {
 	authProviders?: AuthProviderDescriptor[];
 
 	/**
-	 * MCP (Model Context Protocol) server endpoint.
-	 *
-	 * Exposes an MCP Streamable HTTP server at `/_emdash/api/mcp`
-	 * that allows AI agents and tools to interact with the CMS using
-	 * the standardized MCP protocol.
-	 *
-	 * Enabled by default. The endpoint requires bearer token auth, so
-	 * it has no effect unless the user creates an API token and
-	 * configures a client. Set to `false` to disable.
-	 *
-	 * @default true
-	 */
-	mcp?: boolean;
-
-	/**
 	 * Plugin marketplace URL
 	 *
 	 * Existing marketplace-installed plugins use this URL for updates.
@@ -427,42 +498,6 @@ export interface EmDashConfig {
 	 * @default true
 	 */
 	updateCheck?: boolean | { minimumReleaseAge?: string | number };
-
-	/**
-	 * Maximum allowed media file upload size in bytes.
-	 *
-	 * Applies to both direct multipart uploads and signed-URL uploads.
-	 * When unset, defaults to 52_428_800 (50 MB).
-	 *
-	 * @example
-	 * ```ts
-	 * emdash({ maxUploadSize: 100 * 1024 * 1024 }) // 100 MB
-	 * ```
-	 */
-	maxUploadSize?: number;
-
-	/**
-	 * Generate blurhash and dominant-color placeholders during image upload.
-	 *
-	 * Defaults to `true`. Set to `false` to skip server-side LQIP generation
-	 * while preserving dimensions, validation, and content hashing.
-	 */
-	imagePlaceholders?: boolean;
-
-	/**
-	 * Public browser-facing origin for the site.
-	 *
-	 * Use when `Astro.url` / `request.url` do not match what users open — common with a
-	 * **TLS-terminating reverse proxy**: the app often sees `http://` on the internal hop
-	 * while the browser uses `https://`, which breaks WebAuthn, CSRF, OAuth, and redirect URLs.
-	 *
-	 * Set to the full origin users type in the address bar (no path), e.g.
-	 * `https://mysite.example.com`. When not set, falls back to environment variables
-	 * `EMDASH_SITE_URL` > `SITE_URL`, then to the request URL's origin.
-	 *
-	 * Replaces `passkeyPublicOrigin` (which only fixed passkeys).
-	 */
-	siteUrl?: string;
 
 	/**
 	 * Additional origins accepted by passkey verification.
@@ -563,29 +598,6 @@ export interface EmDashConfig {
 		/** Module path for the playground middleware. */
 		middlewareEntrypoint: string;
 	};
-
-	/**
-	 * Media providers for browsing and uploading media
-	 *
-	 * The local media provider (using storage adapter) is available by default.
-	 * Additional providers can be added for external services like Unsplash,
-	 * Cloudinary, Mux, Cloudflare Images, etc.
-	 *
-	 * @example
-	 * ```ts
-	 * import { cloudflareImages, cloudflareStream } from "@emdash-cms/cloudflare";
-	 * import { unsplash } from "@emdash-cms/provider-unsplash";
-	 *
-	 * emdash({
-	 *   mediaProviders: [
-	 *     cloudflareImages({ accountId: "..." }),
-	 *     cloudflareStream({ accountId: "..." }),
-	 *     unsplash({ accessKey: "..." }),
-	 *   ],
-	 * })
-	 * ```
-	 */
-	mediaProviders?: MediaProviderDescriptor[];
 
 	/**
 	 * Admin UI font configuration.

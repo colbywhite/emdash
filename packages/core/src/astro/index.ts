@@ -30,4 +30,9 @@ export type { ObjectCacheDescriptor, ObjectCacheRuntimeConfig } from "../object-
 // Integration (build-time only - the emdash() function uses Node.js APIs)
 export { default } from "./integration/index.js";
 export { getStoredConfig } from "./integration/runtime.js";
-export type { EmDashConfig, ResolvedPlugin } from "./integration/runtime.js";
+export type {
+	EmDashConfig,
+	EmDashSiteConfig,
+	EmDashSiteOptions,
+	ResolvedPlugin,
+} from "./integration/runtime.js";

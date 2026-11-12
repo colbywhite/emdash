@@ -18,6 +18,7 @@ declare module "virtual:emdash/config" {
 		database?: DatabaseDescriptor;
 		migrations?: import("./database/migrations/policy.js").RuntimeMigrationConfig;
 		storage?: StorageDescriptor;
+		sites?: import("./astro/integration/runtime.js").EmDashSiteConfig[];
 		auth?: AuthDescriptor;
 		authProviders?: AuthProviderDescriptor[];
 		i18n?: I18nConfig | null;

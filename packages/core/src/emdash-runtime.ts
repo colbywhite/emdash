@@ -734,7 +734,21 @@ function getSeedHolder(): SeedHolder {
 	}
 	return holder;
 }
-const storageCache = new Map<string, Storage>();
+const STORAGE_CACHE_KEY = Symbol.for("emdash:storage-cache");
+function getStorageCache(): Map<string, Storage> {
+	const existing = globalSymbolStore[STORAGE_CACHE_KEY];
+	if (existing instanceof Map) {
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot, written only below
+		return existing as Map<string, Storage>;
+	}
+	const cache = new Map<string, Storage>();
+	globalSymbolStore[STORAGE_CACHE_KEY] = cache;
+	return cache;
+}
+
+export function getStorageCacheKeys(): string[] {
+	return [...getStorageCache().keys()].toSorted();
+}
 const sandboxedPluginCache = new Map<string, SandboxedPluginInstance>();
 const sandboxedManifestCache = new Map<string, PluginManifest>();
 /**
@@ -2890,6 +2904,7 @@ export class EmDashRuntime {
 			return null;
 		}
 
+		const storageCache = getStorageCache();
 		const cacheKey = storageConfig.entrypoint;
 		const cached = storageCache.get(cacheKey);
 		if (cached) {

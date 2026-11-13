@@ -22,6 +22,7 @@ import { fetchManifest } from "../lib/api";
 import { useCurrentUser } from "../lib/api/current-user.js";
 import { SUPPORTED_LOCALES } from "../locales/index.js";
 import { useLocale } from "../locales/useLocale.js";
+import { MultisiteInfoSection } from "./settings/MultisiteInfoSection.js";
 import { SettingsNavRow, SettingsSection } from "./settings/SettingsLayout.js";
 
 /**
@@ -134,6 +135,8 @@ export function Settings() {
 						/>
 					</SettingsSection>
 				) : null}
+
+				{isAdmin && (manifest?.sites?.length ?? 0) > 0 ? <MultisiteInfoSection /> : null}
 
 				<SettingsSection title={t`Personal`}>
 					<SettingsNavRow

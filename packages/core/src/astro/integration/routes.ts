@@ -694,6 +694,12 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/admin/core-update.ts"),
 	});
 
+	// Multi-site diagnostics
+	injectRoute({
+		pattern: "/_emdash/api/admin/multisite-info",
+		entrypoint: resolveRoute("api/admin/multisite-info.ts"),
+	});
+
 	// Exclusive hooks admin routes
 	injectRoute({
 		pattern: "/_emdash/api/admin/hooks/exclusive",

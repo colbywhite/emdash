@@ -460,3 +460,10 @@ export {
 	releaseEntryLock,
 	entryLockRefusal,
 } from "./entry-lock.js";
+
+// Multi-site diagnostics
+export {
+	type MultisiteInfo,
+	type MultisiteSiteDiagnostics,
+	fetchMultisiteInfo,
+} from "./multisite.js";

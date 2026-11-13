@@ -32,6 +32,8 @@ declare module "virtual:emdash/config" {
 		trailingSlash?: "always" | "never" | "ignore";
 		/** `routePattern` of the image endpoint EmDash installed; absent when it installed none. */
 		imageEndpointRoute?: string;
+		maxUploadSize?: number;
+		imagePlaceholders?: boolean;
 	}
 
 	const config: VirtualConfig;
@@ -99,6 +101,15 @@ declare module "virtual:emdash/dialect" {
 	}
 	export const createRequestScopedDb: (opts: RequestScopedDbOpts) => RequestScopedDb | null;
 	export const executeCollectionDeletionGuard: ExecuteCollectionDeletionGuard | undefined;
+
+	export interface DialectBundle {
+		createDialect: (config: unknown) => Dialect;
+		dialectType: DatabaseDialectType;
+		createRequestScopedDb: (opts: RequestScopedDbOpts) => RequestScopedDb | null;
+		createCoalescingDialect: ((config: unknown) => Dialect | null) | undefined;
+		executeCollectionDeletionGuard: ExecuteCollectionDeletionGuard | undefined;
+	}
+	export const dialectsByEntrypoint: Record<string, DialectBundle>;
 }
 
 declare module "virtual:emdash/storage" {
@@ -106,6 +117,7 @@ declare module "virtual:emdash/storage" {
 
 	// Can be undefined if no storage configured, or the actual function
 	export const createStorage: ((config: Record<string, unknown>) => Storage) | undefined;
+	export const storagesByEntrypoint: Record<string, (config: Record<string, unknown>) => Storage>;
 }
 
 declare module "virtual:emdash/object-cache" {
@@ -117,6 +129,7 @@ declare module "virtual:emdash/object-cache" {
 	// Can be undefined if no object cache is configured.
 	export const createObjectCache: CreateObjectCacheBackendFn | undefined;
 	export const objectCacheConfig: ObjectCacheRuntimeConfig | undefined;
+	export const objectCachesByEntrypoint: Record<string, CreateObjectCacheBackendFn>;
 }
 
 declare module "virtual:emdash/auth" {
@@ -157,6 +170,13 @@ declare module "virtual:emdash/sandboxed-plugins" {
 	import type { PluginDescriptor } from "./astro/integration/runtime.js";
 
 	export const sandboxedPlugins: PluginDescriptor[];
+}
+
+declare module "virtual:emdash/media-providers" {
+	import type { MediaProviderEntry } from "./emdash-runtime.js";
+
+	export const mediaProviders: MediaProviderEntry[];
+	export const mediaProvidersBySite: Record<string, MediaProviderEntry[]>;
 }
 
 declare module "virtual:emdash/block-components" {

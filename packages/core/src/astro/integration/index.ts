@@ -37,7 +37,6 @@ import {
 	resolveRegistryConfigForSandbox,
 } from "../../registry/config.js";
 import { VERSION } from "../../version.js";
-import { local } from "../storage/adapters.js";
 import { readAdminLocaleManifest, resolveAdminLocales } from "./admin-locales.js";
 import { resolveHiddenNavItems } from "./admin-nav.js";
 import { loadDevEnv } from "./dev-env.js";
@@ -50,7 +49,12 @@ import {
 	injectAuthProviderRoutes,
 	injectMcpRoute,
 } from "./routes.js";
-import type { EmDashConfig, EmDashSiteConfig } from "./runtime.js";
+import {
+	DEFAULT_STORAGE,
+	type EmDashConfig,
+	type EmDashSiteConfig,
+	resolveSiteConfig,
+} from "./runtime.js";
 import { createViteConfig, resolveAdminDist } from "./vite-config.js";
 
 // Re-export runtime types and functions
@@ -63,7 +67,7 @@ export type {
 	SandboxedPluginDescriptor,
 	ResolvedPlugin,
 } from "./runtime.js";
-export { getStoredConfig } from "./runtime.js";
+export { getStoredConfig, resolveSiteConfig } from "./runtime.js";
 
 /**
  * Resolve the version of Astro the host project is building with, by reading
@@ -114,12 +118,6 @@ export function adapterVersionMismatchWarning(
 	}
 	return undefined;
 }
-
-/** Default storage: Local filesystem in .emdash directory */
-const DEFAULT_STORAGE = local({
-	directory: "./.emdash/uploads",
-	baseUrl: "/_emdash/api/media/file",
-});
 
 export interface ImageRemotePattern {
 	protocol?: "http" | "https";
@@ -217,6 +215,60 @@ export function buildImageRemotePatterns(
 	return patterns;
 }
 
+function dedupeImageRemotePatterns(patterns: ImageRemotePattern[]): ImageRemotePattern[] {
+	const seen = new Set<string>();
+	const result: ImageRemotePattern[] = [];
+	for (const pattern of patterns) {
+		const key = `${pattern.protocol ?? ""}|${pattern.hostname ?? ""}|${pattern.pathname ?? ""}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		result.push(pattern);
+	}
+	return result;
+}
+
+/**
+ * Collect `image.remotePatterns` across single-site or multi-site config.
+ *
+ * @internal Exported for unit testing.
+ */
+export function buildAllImageRemotePatterns(
+	resolvedConfig: Pick<EmDashConfig, "storage" | "siteUrl" | "sites">,
+	command: "dev" | "build" | "preview" | "sync",
+): ImageRemotePattern[] {
+	if (!resolvedConfig.sites?.length) {
+		return buildImageRemotePatterns(
+			resolvedConfig.storage,
+			resolveBuildTimeSiteUrl(resolvedConfig.siteUrl),
+			command,
+		);
+	}
+
+	const adminSiteUrl = resolveBuildTimeSiteUrl(resolvedConfig.siteUrl);
+	const patterns: ImageRemotePattern[] = [];
+	for (const site of resolvedConfig.sites) {
+		const siteUrl = resolveBuildTimeSiteUrl(site.siteUrl) ?? adminSiteUrl;
+		patterns.push(...buildImageRemotePatterns(site.storage, siteUrl, command));
+		if (siteUrl) {
+			try {
+				const { hostname } = new URL(siteUrl);
+				if (!hostname.includes("*")) {
+					patterns.push({
+						hostname,
+						pathname: `/_emdash/api/site/${site.id}/media/file/**`,
+					});
+				}
+			} catch {
+				// ignore unparseable site URL
+			}
+		}
+		if (command === "dev") {
+			patterns.push({ pathname: `/_emdash/api/site/${site.id}/media/file/**` });
+		}
+	}
+	return dedupeImageRemotePatterns(patterns);
+}
+
 /**
  * Build the config subset baked into `virtual:emdash/config` and exposed
  * at runtime as `locals.emdash.config`. A config option that runtime code
@@ -242,7 +294,9 @@ export function buildSerializableConfig(resolvedConfig: EmDashConfig): Record<st
 		admin: resolvedConfig.admin,
 		toolbar: resolvedConfig.toolbar,
 		updateCheck: resolvedConfig.updateCheck,
-		objectCacheEnabled: resolvedConfig.objectCache !== undefined,
+		objectCacheEnabled:
+			resolvedConfig.objectCache !== undefined ||
+			(resolvedConfig.sites?.some((site) => site.objectCache !== undefined) ?? false),
 	};
 }
 
@@ -496,40 +550,23 @@ export function resolveEmDashConfig(config: EmDashConfig): EmDashConfig {
 	normalizeRegistryConfig(registry, { allowLocalhost: true });
 
 	const migrations = normalizeMigrationConfig(config.migrations);
+	const configWithNormalizedMigrations: EmDashConfig = { ...config, migrations };
 
 	const resolvedSites: EmDashSiteConfig[] | undefined = config.sites?.map((site, index) => {
-		const resolved: EmDashSiteConfig = {
+		const resolved = resolveSiteConfig(configWithNormalizedMigrations, {
 			...site,
 			migrations:
 				site.migrations !== undefined ? normalizeMigrationConfig(site.migrations) : migrations,
-		};
+		});
 		if (site.siteUrl) {
 			resolved.siteUrl = normalizeSiteUrl(site.siteUrl, `sites[${index}].siteUrl`);
-		}
-		if (resolved.objectCache === undefined && config.objectCache !== undefined) {
-			resolved.objectCache = config.objectCache;
-		}
-		if (resolved.images === undefined && config.images !== undefined) {
-			resolved.images = config.images;
-		}
-		if (resolved.mcp === undefined && config.mcp !== undefined) {
-			resolved.mcp = config.mcp;
-		}
-		if (resolved.maxUploadSize === undefined && config.maxUploadSize !== undefined) {
-			resolved.maxUploadSize = config.maxUploadSize;
-		}
-		if (resolved.imagePlaceholders === undefined && config.imagePlaceholders !== undefined) {
-			resolved.imagePlaceholders = config.imagePlaceholders;
-		}
-		if (resolved.mediaProviders === undefined && config.mediaProviders !== undefined) {
-			resolved.mediaProviders = config.mediaProviders;
 		}
 		return resolved;
 	});
 
 	const resolvedConfig: EmDashConfig = {
 		...config,
-		storage: config.sites ? undefined : (config.storage ?? DEFAULT_STORAGE),
+		storage: config.sites?.length ? undefined : (config.storage ?? DEFAULT_STORAGE),
 		migrations,
 		registry: config.registry === false ? false : registry,
 		...(resolvedSites !== undefined ? { sites: resolvedSites } : {}),
@@ -682,7 +719,10 @@ export function emdash<T extends EmDashConfig = EmDashConfig>(
 	let astroCommand: "dev" | "build" | "preview" | "sync" | undefined;
 	let usesCloudflareAdapter = false;
 	let normalizedI18n: ReturnType<typeof normalizeAstroI18n> = null;
-	const migrationMetadata = createMigrationIntegrationMetadata(resolvedConfig.database);
+	const migrationMetadata = createMigrationIntegrationMetadata(
+		resolvedConfig.database,
+		resolvedConfig.sites,
+	);
 
 	const integration: AstroIntegration = {
 		name: "emdash",
@@ -743,11 +783,20 @@ export function emdash<T extends EmDashConfig = EmDashConfig>(
 				// When siteUrl is known at build time, also set allowedDomains
 				// so Astro.url reflects the public origin (helps user template
 				// code that reads Astro.url directly).
+				const allowedDomainHostnames = new Set<string>();
+				if (resolvedConfig.siteUrl) {
+					allowedDomainHostnames.add(new URL(resolvedConfig.siteUrl).hostname);
+				}
+				for (const site of resolvedConfig.sites ?? []) {
+					if (site.siteUrl) {
+						allowedDomainHostnames.add(new URL(site.siteUrl).hostname);
+					}
+				}
 				const securityConfig: Record<string, unknown> = {
 					checkOrigin: false,
-					...(resolvedConfig.siteUrl
+					...(allowedDomainHostnames.size > 0
 						? {
-								allowedDomains: [{ hostname: new URL(resolvedConfig.siteUrl).hostname }],
+								allowedDomains: Array.from(allowedDomainHostnames, (hostname) => ({ hostname })),
 							}
 						: {}),
 				};
@@ -791,11 +840,7 @@ export function emdash<T extends EmDashConfig = EmDashConfig>(
 				// Authorize media sources so Astro's image service builds transform
 				// URLs for them (it won't optimize an un-allowed source). `updateConfig`
 				// merges arrays, so user-configured remotePatterns are preserved.
-				const imageRemotePatterns = buildImageRemotePatterns(
-					resolvedConfig.storage,
-					resolveBuildTimeSiteUrl(resolvedConfig.siteUrl),
-					command,
-				);
+				const imageRemotePatterns = buildAllImageRemotePatterns(resolvedConfig, command);
 
 				// Wrap Astro's image endpoint so EmDash media bytes load straight from
 				// storage (Access-safe) instead of over HTTP. Skip when the user opts
@@ -891,12 +936,22 @@ export function emdash<T extends EmDashConfig = EmDashConfig>(
 					);
 					return;
 				}
+				const siteWithoutMigrations = migrationMetadata.sites?.find(
+					(site) => !site.database.migrations,
+				);
+				if (siteWithoutMigrations) {
+					logger.warn(
+						`EmDash migration manifest was not written because site "${siteWithoutMigrations.id}" database adapter does not support deployment migrations.`,
+					);
+					return;
+				}
 
 				const identity = await getCoreMigrationIdentity();
 				const manifest = await buildMigrationManifest({
 					identity,
 					i18n: normalizedI18n,
 					database: migrationMetadata.database,
+					...(migrationMetadata.sites ? { sites: migrationMetadata.sites } : {}),
 				});
 				await writeMigrationManifest(fileURLToPath(finalConfig.root), manifest);
 			},

@@ -315,6 +315,15 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			// Generate a module that statically imports the configured dialect
 			// This allows Vite to properly resolve and bundle it
 			if (id === RESOLVED_VIRTUAL_DIALECT_ID) {
+				const siteDialects = (resolvedConfig.sites ?? [])
+					.filter((site) => site.database?.entrypoint)
+					.map((site) => ({
+						entrypoint: site.database.entrypoint,
+						type: site.database.type,
+						supportsRequestScope: site.database.supportsRequestScope ?? false,
+						supportsCoalescing: site.database.supportsCoalescing ?? false,
+						supportsCollectionDeletionGuard: site.database.supportsCollectionDeletionGuard ?? false,
+					}));
 				return generateDialectModule({
 					entrypoint: resolvedConfig.database?.entrypoint,
 					type: resolvedConfig.database?.type,
@@ -322,18 +331,26 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 					supportsCoalescing: resolvedConfig.database?.supportsCoalescing ?? false,
 					supportsCollectionDeletionGuard:
 						resolvedConfig.database?.supportsCollectionDeletionGuard ?? false,
+					additionalDialects: siteDialects,
 				});
 			}
 			// Generate a module that statically imports the configured storage
 			if (id === RESOLVED_VIRTUAL_STORAGE_ID) {
-				return generateStorageModule(resolvedConfig.storage?.entrypoint);
+				const siteStorageEntrypoints = (resolvedConfig.sites ?? [])
+					.map((site) => site.storage?.entrypoint)
+					.filter((ep): ep is string => Boolean(ep));
+				return generateStorageModule(resolvedConfig.storage?.entrypoint, siteStorageEntrypoints);
 			}
 			// Generate the object-cache module — statically imports the
 			// configured backend factory, or exports undefined (cache off).
 			if (id === RESOLVED_VIRTUAL_OBJECT_CACHE_ID) {
+				const siteObjectCacheEntrypoints = (resolvedConfig.sites ?? [])
+					.map((site) => site.objectCache?.entrypoint)
+					.filter((ep): ep is string => Boolean(ep));
 				return generateObjectCacheModule(
 					resolvedConfig.objectCache?.entrypoint,
 					resolvedConfig.objectCache?.config,
+					siteObjectCacheEntrypoints,
 				);
 			}
 			// Generate plugins module that imports and instantiates all plugins
@@ -374,7 +391,16 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			}
 			// Generate media providers module
 			if (id === RESOLVED_VIRTUAL_MEDIA_PROVIDERS_ID) {
-				return generateMediaProvidersModule(resolvedConfig.mediaProviders ?? []);
+				const siteMediaProviders = Object.fromEntries(
+					(resolvedConfig.sites ?? []).map((site) => [
+						site.id,
+						site.mediaProviders ?? resolvedConfig.mediaProviders ?? [],
+					]),
+				);
+				return generateMediaProvidersModule(
+					resolvedConfig.mediaProviders ?? [],
+					siteMediaProviders,
+				);
 			}
 			// Generate block components module (plugin rendering components for PortableText)
 			if (id === RESOLVED_VIRTUAL_BLOCK_COMPONENTS_ID) {

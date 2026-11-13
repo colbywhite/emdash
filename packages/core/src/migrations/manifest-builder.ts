@@ -11,6 +11,7 @@ export interface BuildMigrationManifestOptions {
 	identity: CoreMigrationIdentity;
 	i18n: I18nConfig | null;
 	database: ManifestDatabaseDescriptor;
+	sites?: ReadonlyArray<{ id: string; database: ManifestDatabaseDescriptor }>;
 }
 
 export class UnsupportedMigrationAdapterError extends Error {
@@ -24,6 +25,7 @@ export async function buildMigrationManifest({
 	identity,
 	i18n,
 	database,
+	sites,
 }: BuildMigrationManifestOptions): Promise<MigrationManifestV1> {
 	const identityFingerprint = await fingerprintMigrationSet(identity.emdashVersion, identity.names);
 	if (identityFingerprint !== identity.fingerprint) {
@@ -34,6 +36,22 @@ export async function buildMigrationManifest({
 	if (!database.migrations) {
 		throw new UnsupportedMigrationAdapterError();
 	}
+
+	const manifestSites = sites?.length
+		? sites.map((site) => {
+				if (!site.database.migrations) {
+					throw new UnsupportedMigrationAdapterError();
+				}
+				return {
+					id: site.id,
+					database: {
+						type: site.database.type,
+						executorEntrypoint: site.database.migrations.entrypoint,
+						executorConfig: site.database.migrations.manifestConfig,
+					},
+				};
+			})
+		: undefined;
 
 	return validateMigrationManifest(
 		{
@@ -49,6 +67,7 @@ export async function buildMigrationManifest({
 				executorEntrypoint: database.migrations.entrypoint,
 				executorConfig: database.migrations.manifestConfig,
 			},
+			...(manifestSites !== undefined ? { sites: manifestSites } : {}),
 		},
 		identity,
 	);

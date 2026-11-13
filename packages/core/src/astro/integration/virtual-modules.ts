@@ -96,67 +96,181 @@ export function generateConfigModule(serializableConfig: Record<string, unknown>
  * this capability explicit prevents bundlers from probing exports that do not
  * exist on SQLite, libSQL, PostgreSQL, or other adapters.
  */
+export interface DialectModuleTarget {
+	entrypoint: string;
+	type?: string;
+	supportsRequestScope: boolean;
+	supportsCoalescing: boolean;
+	supportsCollectionDeletionGuard: boolean;
+}
+
 export function generateDialectModule(opts: {
 	entrypoint?: string;
 	type?: string;
 	supportsRequestScope: boolean;
 	supportsCoalescing: boolean;
 	supportsCollectionDeletionGuard: boolean;
+	additionalDialects?: readonly DialectModuleTarget[];
 }): string {
-	const { entrypoint, supportsRequestScope, supportsCoalescing, supportsCollectionDeletionGuard } =
-		opts;
+	const {
+		entrypoint,
+		supportsRequestScope,
+		supportsCoalescing,
+		supportsCollectionDeletionGuard,
+		additionalDialects = [],
+	} = opts;
+
+	const uniqueDialects = new Map<string, DialectModuleTarget>();
+	if (entrypoint) {
+		uniqueDialects.set(entrypoint, {
+			entrypoint,
+			type: opts.type,
+			supportsRequestScope,
+			supportsCoalescing,
+			supportsCollectionDeletionGuard,
+		});
+	}
+	for (const extra of additionalDialects) {
+		if (!extra.entrypoint) continue;
+		const existing = uniqueDialects.get(extra.entrypoint);
+		if (existing) {
+			existing.supportsRequestScope ||= extra.supportsRequestScope;
+			existing.supportsCoalescing ||= extra.supportsCoalescing;
+			existing.supportsCollectionDeletionGuard ||= extra.supportsCollectionDeletionGuard;
+			existing.type ??= extra.type;
+		} else {
+			uniqueDialects.set(extra.entrypoint, { ...extra });
+		}
+	}
+
+	const lines: string[] = [];
 	if (!entrypoint) {
-		return [
+		lines.push(
 			`export const createDialect = undefined;`,
 			`export const dialectType = "sqlite";`,
 			`export const createRequestScopedDb = (_opts) => null;`,
 			`export const createCoalescingDialect = undefined;`,
 			`export const executeCollectionDeletionGuard = undefined;`,
-		].join("\n");
+		);
+	} else {
+		const primary = uniqueDialects.get(entrypoint)!;
+		const type = primary.type ?? "sqlite";
+		const coalescingExport = primary.supportsCoalescing
+			? `import { createCoalescingDialect as _createCoalescingDialect } from "${entrypoint}";\nexport const createCoalescingDialect = _createCoalescingDialect;`
+			: `export const createCoalescingDialect = undefined;`;
+		const collectionDeletionExport = primary.supportsCollectionDeletionGuard
+			? `import { executeCollectionDeletionGuard as _executeCollectionDeletionGuard } from "${entrypoint}";\nexport { executeCollectionDeletionGuard } from "${entrypoint}";`
+			: `export const executeCollectionDeletionGuard = undefined;`;
+
+		if (primary.supportsRequestScope) {
+			lines.push(
+				`import { createDialect as _createDialect } from "${entrypoint}";`,
+				`import { createRequestScopedDb as _createRequestScopedDb } from "${entrypoint}";`,
+				`export { createRequestScopedDb } from "${entrypoint}";`,
+				coalescingExport,
+				collectionDeletionExport,
+				`export const createDialect = _createDialect;`,
+				`export const dialectType = ${JSON.stringify(type)};`,
+			);
+		} else {
+			lines.push(
+				`import { createDialect as _createDialect } from "${entrypoint}";`,
+				coalescingExport,
+				collectionDeletionExport,
+				`export const createDialect = _createDialect;`,
+				`export const dialectType = ${JSON.stringify(type)};`,
+				`export const createRequestScopedDb = (_opts) => null;`,
+			);
+		}
 	}
-	const type = opts.type ?? "sqlite";
 
-	const coalescingExport = supportsCoalescing
-		? `import { createCoalescingDialect as _createCoalescingDialect } from "${entrypoint}";
-export const createCoalescingDialect = _createCoalescingDialect;`
-		: `export const createCoalescingDialect = undefined;`;
-	const collectionDeletionExport = supportsCollectionDeletionGuard
-		? `export { executeCollectionDeletionGuard } from "${entrypoint}";`
-		: `export const executeCollectionDeletionGuard = undefined;`;
-
-	if (supportsRequestScope) {
-		return `
-import { createDialect as _createDialect } from "${entrypoint}";
-export { createRequestScopedDb } from "${entrypoint}";
-${coalescingExport}
-${collectionDeletionExport}
-export const createDialect = _createDialect;
-export const dialectType = ${JSON.stringify(type)};
-`;
+	const mapEntries: string[] = [];
+	let extraIndex = 0;
+	for (const [ep, target] of uniqueDialects) {
+		if (ep === entrypoint) {
+			const requestScopedExpr = target.supportsRequestScope
+				? "_createRequestScopedDb"
+				: "createRequestScopedDb";
+			const deletionGuardExpr = target.supportsCollectionDeletionGuard
+				? "_executeCollectionDeletionGuard"
+				: "executeCollectionDeletionGuard";
+			mapEntries.push(
+				`  ${JSON.stringify(ep)}: { createDialect, dialectType, createRequestScopedDb: ${requestScopedExpr}, createCoalescingDialect, executeCollectionDeletionGuard: ${deletionGuardExpr} },`,
+			);
+			continue;
+		}
+		const idx = extraIndex++;
+		const type = target.type ?? "sqlite";
+		lines.push(`import { createDialect as _createDialect${idx} } from "${ep}";`);
+		if (target.supportsRequestScope) {
+			lines.push(`import { createRequestScopedDb as _createRequestScopedDb${idx} } from "${ep}";`);
+		}
+		if (target.supportsCoalescing) {
+			lines.push(
+				`import { createCoalescingDialect as _createCoalescingDialect${idx} } from "${ep}";`,
+			);
+		}
+		if (target.supportsCollectionDeletionGuard) {
+			lines.push(
+				`import { executeCollectionDeletionGuard as _executeCollectionDeletionGuard${idx} } from "${ep}";`,
+			);
+		}
+		mapEntries.push(
+			`  ${JSON.stringify(ep)}: {
+    createDialect: _createDialect${idx},
+    dialectType: ${JSON.stringify(type)},
+    createRequestScopedDb: ${target.supportsRequestScope ? `_createRequestScopedDb${idx}` : `(_opts) => null`},
+    createCoalescingDialect: ${target.supportsCoalescing ? `_createCoalescingDialect${idx}` : `undefined`},
+    executeCollectionDeletionGuard: ${target.supportsCollectionDeletionGuard ? `_executeCollectionDeletionGuard${idx}` : `undefined`},
+  },`,
+		);
 	}
 
-	return `
-import { createDialect as _createDialect } from "${entrypoint}";
-${coalescingExport}
-${collectionDeletionExport}
-export const createDialect = _createDialect;
-export const dialectType = ${JSON.stringify(type)};
-export const createRequestScopedDb = (_opts) => null;
-`;
+	lines.push(
+		mapEntries.length > 0
+			? `export const dialectsByEntrypoint = {\n${mapEntries.join("\n")}\n};`
+			: `export const dialectsByEntrypoint = {};`,
+	);
+
+	return lines.join("\n");
 }
 
 /**
  * Generates the storage virtual module.
- * Statically imports the configured storage adapter.
+ * Statically imports the configured storage adapter(s).
  */
-export function generateStorageModule(storageEntrypoint?: string): string {
-	if (!storageEntrypoint) {
-		return `export const createStorage = undefined;`;
+export function generateStorageModule(
+	storageEntrypoint?: string,
+	additionalEntrypoints: readonly string[] = [],
+): string {
+	const uniqueEntrypoints = [
+		...new Set(
+			[storageEntrypoint, ...additionalEntrypoints].filter((v): v is string => Boolean(v)),
+		),
+	];
+
+	if (uniqueEntrypoints.length === 0) {
+		return [
+			`export const createStorage = undefined;`,
+			`export const storagesByEntrypoint = {};`,
+		].join("\n");
 	}
-	return `
-import { createStorage as _createStorage } from "${storageEntrypoint}";
-export const createStorage = _createStorage;
-`;
+
+	const imports: string[] = [];
+	const mapEntries: string[] = [];
+	uniqueEntrypoints.forEach((ep, index) => {
+		const varName = ep === storageEntrypoint ? "_createStorage" : `_createStorage${index}`;
+		imports.push(`import { createStorage as ${varName} } from "${ep}";`);
+		mapEntries.push(`  ${JSON.stringify(ep)}: ${varName},`);
+	});
+
+	return [
+		...imports,
+		storageEntrypoint
+			? `export const createStorage = _createStorage;`
+			: `export const createStorage = undefined;`,
+		`export const storagesByEntrypoint = {\n${mapEntries.join("\n")}\n};`,
+	].join("\n");
 }
 
 /**
@@ -170,18 +284,35 @@ export const createStorage = _createStorage;
 export function generateObjectCacheModule(
 	entrypoint?: string,
 	config?: Record<string, unknown>,
+	additionalEntrypoints: readonly string[] = [],
 ): string {
-	if (!entrypoint) {
+	const uniqueEntrypoints = [
+		...new Set([entrypoint, ...additionalEntrypoints].filter((v): v is string => Boolean(v))),
+	];
+
+	if (uniqueEntrypoints.length === 0) {
 		return [
 			`export const createObjectCache = undefined;`,
 			`export const objectCacheConfig = undefined;`,
+			`export const objectCachesByEntrypoint = {};`,
 		].join("\n");
 	}
-	return `
-import { createObjectCache as _createObjectCache } from "${entrypoint}";
-export const createObjectCache = _createObjectCache;
-export const objectCacheConfig = ${JSON.stringify(config ?? {})};
-`;
+
+	const imports: string[] = [];
+	const mapEntries: string[] = [];
+	uniqueEntrypoints.forEach((ep, index) => {
+		const varName = ep === entrypoint ? "_createObjectCache" : `_createObjectCache${index}`;
+		imports.push(`import { createObjectCache as ${varName} } from "${ep}";`);
+		mapEntries.push(`  ${JSON.stringify(ep)}: ${varName},`);
+	});
+
+	return [
+		...imports,
+		entrypoint
+			? `export const createObjectCache = _createObjectCache;\nexport const objectCacheConfig = ${JSON.stringify(config ?? {})};`
+			: `export const createObjectCache = undefined;\nexport const objectCacheConfig = undefined;`,
+		`export const objectCachesByEntrypoint = {\n${mapEntries.join("\n")}\n};`,
+	].join("\n");
 }
 
 /**
@@ -412,38 +543,64 @@ export const sandboxEnabled = true;
 `;
 }
 
+function isLocalMediaProviderDisabled(list: MediaProviderDescriptor[]): boolean {
+	return list.some((d) => d.id === "local" && d.config.enabled === false);
+}
+
 /**
  * Generates the media providers module.
  * Imports and instantiates configured media providers at runtime.
  */
-export function generateMediaProvidersModule(descriptors: MediaProviderDescriptor[]): string {
-	// Always include local provider by default unless explicitly disabled
-	const localDisabled = descriptors.some((d) => d.id === "local" && d.config.enabled === false);
-
+export function generateMediaProvidersModule(
+	descriptors: MediaProviderDescriptor[],
+	siteDescriptors: Record<string, MediaProviderDescriptor[]> = {},
+): string {
 	const imports: string[] = [];
-	const entries: string[] = [];
+	const providerVars = new Map<string, string>();
+	let nextProviderIndex = 0;
+	let needsLocalProvider = false;
 
-	// Add local provider first if not disabled
-	if (!localDisabled) {
-		imports.push(
+	const registerList = (list: MediaProviderDescriptor[]) => {
+		if (!isLocalMediaProviderDisabled(list)) {
+			needsLocalProvider = true;
+		}
+		for (const descriptor of list) {
+			if (descriptor.id === "local") continue;
+			if (!providerVars.has(descriptor.entrypoint)) {
+				const varName = `createProvider${nextProviderIndex++}`;
+				providerVars.set(descriptor.entrypoint, varName);
+				imports.push(
+					`import { createMediaProvider as ${varName} } from "${descriptor.entrypoint}";`,
+				);
+			}
+		}
+	};
+
+	registerList(descriptors);
+	for (const list of Object.values(siteDescriptors)) {
+		registerList(list);
+	}
+
+	if (needsLocalProvider) {
+		imports.unshift(
 			`import { createMediaProvider as createLocalProvider } from "emdash/internal/media/local-runtime";`,
 		);
-		entries.push(`{
+	}
+
+	const buildEntries = (list: MediaProviderDescriptor[]): string[] => {
+		const entries: string[] = [];
+		if (!isLocalMediaProviderDisabled(list)) {
+			entries.push(`{
 	id: "local",
 	name: "Library",
 	icon: "folder",
 	capabilities: { browse: true, search: false, upload: true, delete: true },
 	createProvider: (ctx) => createLocalProvider({ ...ctx, enabled: true }),
 }`);
-	}
-
-	// Add custom providers
-	descriptors
-		.filter((d) => d.id !== "local" || d.config.enabled !== false)
-		.filter((d) => d.id !== "local") // Skip local if we already added it
-		.forEach((descriptor, index) => {
-			const varName = `createProvider${index}`;
-			imports.push(`import { createMediaProvider as ${varName} } from "${descriptor.entrypoint}";`);
+		}
+		for (const descriptor of list) {
+			if (descriptor.id === "local") continue;
+			const varName = providerVars.get(descriptor.entrypoint)!;
 			entries.push(`{
 	id: ${JSON.stringify(descriptor.id)},
 	name: ${JSON.stringify(descriptor.name)},
@@ -451,7 +608,15 @@ export function generateMediaProvidersModule(descriptors: MediaProviderDescripto
 	capabilities: ${JSON.stringify(descriptor.capabilities)},
 	createProvider: (ctx) => ${varName}({ ...${JSON.stringify(descriptor.config)}, ...ctx }),
 }`);
-		});
+		}
+		return entries;
+	};
+
+	const rootEntries = buildEntries(descriptors);
+	const siteEntries = Object.entries(siteDescriptors).map(([siteId, list]) => {
+		const entries = buildEntries(list);
+		return `  ${JSON.stringify(siteId)}: [\n    ${entries.join(",\n    ")}\n  ],`;
+	});
 
 	return `
 // Auto-generated media providers module
@@ -459,8 +624,13 @@ ${imports.join("\n")}
 
 /** Media provider descriptors with factory functions */
 export const mediaProviders = [
-  ${entries.join(",\n  ")}
+  ${rootEntries.join(",\n  ")}
 ];
+
+/** Per-site media provider descriptors with factory functions */
+export const mediaProvidersBySite = {
+${siteEntries.join("\n")}
+};
 `;
 }
 

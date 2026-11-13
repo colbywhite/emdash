@@ -164,4 +164,46 @@ describe("migration manifest integration", () => {
 			},
 		});
 	});
+
+	it("includes multi-site database targets in migration metadata and manifest", async () => {
+		const adminDb = libsql({
+			url: "libsql://admin.example.com",
+			authToken: "admin-secret",
+		});
+		const orangeDb = libsql({
+			url: "libsql://orange.example.com",
+			authToken: "orange-secret",
+		});
+		const build = await runHooks(
+			"build",
+			emdash({
+				database: adminDb,
+				sites: [
+					{
+						id: "orange",
+						name: "Orange",
+						database: orangeDb,
+					},
+				],
+			}),
+		);
+		const output = await readFile(build.manifestPath, "utf8");
+		expect(output).not.toContain("admin-secret");
+		expect(output).not.toContain("orange-secret");
+		expect(JSON.parse(output)).toMatchObject({
+			database: {
+				executorConfig: { url: "libsql://admin.example.com" },
+			},
+			sites: [
+				{
+					id: "orange",
+					database: {
+						type: "sqlite",
+						executorEntrypoint: "emdash/internal/db/libsql-migrations",
+						executorConfig: { url: "libsql://orange.example.com" },
+					},
+				},
+			],
+		});
+	});
 });

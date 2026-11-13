@@ -206,5 +206,6 @@ export async function buildMigrationManifestFromConfig(
 		identity,
 		i18n: normalizeAstroI18n(config.i18n),
 		database: metadata.database,
+		...(metadata.sites ? { sites: metadata.sites } : {}),
 	});
 }

@@ -25,6 +25,7 @@ import type {
 	SettingField,
 } from "../../plugins/types.js";
 import type { RegistryConfigOption } from "../../registry/types.js";
+import { local } from "../storage/adapters.js";
 import type { StorageDescriptor } from "../storage/types.js";
 import type { HideableAdminNavItem } from "./admin-nav.js";
 
@@ -785,6 +786,45 @@ export interface EmDashConfig extends EmDashSiteOptions {
 	 * `env:astro` requirement can be evaluated against the real host version.
 	 */
 	astroVersion?: string;
+}
+
+/** Default storage: Local filesystem in .emdash directory */
+export const DEFAULT_STORAGE: StorageDescriptor = local({
+	directory: "./.emdash/uploads",
+	baseUrl: "/_emdash/api/media/file",
+});
+
+/**
+ * Resolve a site entry by merging inherited top-level `EmDashSiteOptions`
+ * defaults onto it and defaulting `site.storage` to `DEFAULT_STORAGE` when omitted.
+ */
+export function resolveSiteConfig(config: EmDashConfig, site: EmDashSiteConfig): EmDashSiteConfig {
+	const resolved: EmDashSiteConfig = {
+		...site,
+		storage: site.storage ?? DEFAULT_STORAGE,
+	};
+	if (resolved.migrations === undefined && config.migrations !== undefined) {
+		resolved.migrations = config.migrations;
+	}
+	if (resolved.objectCache === undefined && config.objectCache !== undefined) {
+		resolved.objectCache = config.objectCache;
+	}
+	if (resolved.images === undefined && config.images !== undefined) {
+		resolved.images = config.images;
+	}
+	if (resolved.mcp === undefined && config.mcp !== undefined) {
+		resolved.mcp = config.mcp;
+	}
+	if (resolved.maxUploadSize === undefined && config.maxUploadSize !== undefined) {
+		resolved.maxUploadSize = config.maxUploadSize;
+	}
+	if (resolved.imagePlaceholders === undefined && config.imagePlaceholders !== undefined) {
+		resolved.imagePlaceholders = config.imagePlaceholders;
+	}
+	if (resolved.mediaProviders === undefined && config.mediaProviders !== undefined) {
+		resolved.mediaProviders = config.mediaProviders;
+	}
+	return resolved;
 }
 
 const STORED_CONFIG_KEY = Symbol.for("emdash:stored-config");

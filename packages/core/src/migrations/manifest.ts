@@ -29,6 +29,21 @@ const i18nConfigSchema = z
 	})
 	.strict();
 
+const manifestDatabaseSchema = z
+	.object({
+		type: z.enum(["sqlite", "postgres"]),
+		executorEntrypoint: z.string().regex(EXECUTOR_ENTRYPOINT_PATTERN),
+		executorConfig: z.unknown(),
+	})
+	.strict();
+
+const manifestSiteSchema = z
+	.object({
+		id: z.string().min(1),
+		database: manifestDatabaseSchema,
+	})
+	.strict();
+
 export const migrationManifestV1Schema = z
 	.object({
 		schemaVersion: z.literal(1),
@@ -43,13 +58,8 @@ export const migrationManifestV1Schema = z
 			})
 			.strict(),
 		i18n: i18nConfigSchema.nullable(),
-		database: z
-			.object({
-				type: z.enum(["sqlite", "postgres"]),
-				executorEntrypoint: z.string().regex(EXECUTOR_ENTRYPOINT_PATTERN),
-				executorConfig: z.unknown(),
-			})
-			.strict(),
+		database: manifestDatabaseSchema,
+		sites: z.array(manifestSiteSchema).optional(),
 	})
 	.strict();
 
@@ -171,9 +181,20 @@ export async function validateMigrationManifest(
 	}
 
 	const executorConfig = validateSecretFreeExecutorConfig(parsed.data.database.executorConfig);
+	const sites = parsed.data.sites?.map((site) => ({
+		...site,
+		database: {
+			...site.database,
+			executorConfig: validateSecretFreeExecutorConfig(
+				site.database.executorConfig,
+				`sites[${site.id}].database.executorConfig`,
+			),
+		},
+	}));
 	const manifest: MigrationManifestV1 = {
 		...parsed.data,
 		database: { ...parsed.data.database, executorConfig },
+		...(sites !== undefined ? { sites } : {}),
 	};
 	const fingerprint = await fingerprintMigrationSet(
 		manifest.emdashVersion,

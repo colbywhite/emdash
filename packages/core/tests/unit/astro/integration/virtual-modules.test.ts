@@ -11,8 +11,11 @@ import {
 	generateConfigModule,
 	generateDialectModule,
 	generateEnvModule,
+	generateMediaProvidersModule,
+	generateObjectCacheModule,
 	generateSchedulerModule,
 	generateSeedModule,
+	generateStorageModule,
 	RESOLVED_VIRTUAL_BUILD_ID,
 	RESOLVED_VIRTUAL_SANDBOXED_PLUGINS_ID,
 	RESOLVED_VIRTUAL_SCHEDULER_ID,
@@ -327,5 +330,83 @@ describe("generateSeedModule", () => {
 		expect(out).toContain("export const userSeed = null;");
 		expect(out).toContain("export const seed = ");
 		expect(out).toContain("export const mediaBasePath = undefined;");
+	});
+});
+
+describe("multi-site virtual module generators", () => {
+	it("collects unique dialects into dialectsByEntrypoint while preserving primary exports", () => {
+		const out = generateDialectModule({
+			entrypoint: "@emdash-cms/cloudflare/db/d1",
+			type: "sqlite",
+			supportsRequestScope: true,
+			supportsCoalescing: true,
+			supportsCollectionDeletionGuard: true,
+			additionalDialects: [
+				{
+					entrypoint: "@emdash-cms/cloudflare/db/d1",
+					type: "sqlite",
+					supportsRequestScope: true,
+					supportsCoalescing: true,
+					supportsCollectionDeletionGuard: true,
+				},
+				{
+					entrypoint: "emdash/db/postgres",
+					type: "postgres",
+					supportsRequestScope: false,
+					supportsCoalescing: false,
+					supportsCollectionDeletionGuard: false,
+				},
+			],
+		});
+		expect(out).toContain("export const dialectsByEntrypoint = {");
+		expect(out).toContain('"@emdash-cms/cloudflare/db/d1":');
+		expect(out).toContain('"emdash/db/postgres":');
+		expect(out).toContain("createRequestScopedDb: _createRequestScopedDb");
+		expect(out).toContain("executeCollectionDeletionGuard: _executeCollectionDeletionGuard");
+		// Primary entrypoint is not re-imported for dialectsByEntrypoint
+		expect(
+			out.match(
+				/import \{ createDialect as _createDialect\d* \} from "@emdash-cms\/cloudflare\/db\/d1"/g,
+			),
+		).toHaveLength(1);
+		expect(out.match(/from "emdash\/db\/postgres"/g)).toHaveLength(1);
+	});
+
+	it("collects unique storage and objectCache entrypoints across root and sites", () => {
+		const storageOut = generateStorageModule(undefined, [
+			"@emdash-cms/cloudflare/storage/r2",
+			"@emdash-cms/cloudflare/storage/r2",
+			"emdash/storage/s3",
+		]);
+		expect(storageOut).toContain("export const createStorage = undefined;");
+		expect(storageOut).toContain('"@emdash-cms/cloudflare/storage/r2":');
+		expect(storageOut).toContain('"emdash/storage/s3":');
+		expect(storageOut.match(/from "@emdash-cms\/cloudflare\/storage\/r2"/g)).toHaveLength(1);
+
+		const cacheOut = generateObjectCacheModule(undefined, undefined, [
+			"@emdash-cms/cloudflare/cache/kv",
+			"@emdash-cms/cloudflare/cache/kv",
+		]);
+		expect(cacheOut).toContain("export const createObjectCache = undefined;");
+		expect(cacheOut).toContain('"@emdash-cms/cloudflare/cache/kv":');
+		expect(cacheOut.match(/from "@emdash-cms\/cloudflare\/cache\/kv"/g)).toHaveLength(1);
+	});
+
+	it("generates mediaProvidersBySite without duplicate provider imports", () => {
+		const unsplash = {
+			id: "unsplash",
+			name: "Unsplash",
+			entrypoint: "@emdash-cms/provider-unsplash",
+			config: { accessKey: "k1" },
+		};
+		const out = generateMediaProvidersModule([], {
+			orange: [unsplash],
+			purple: [{ ...unsplash, config: { accessKey: "k2" } }],
+		});
+		expect(out).toContain("export const mediaProvidersBySite = {");
+		expect(out).toContain('"orange":');
+		expect(out).toContain('"purple":');
+		expect(out.match(/from "@emdash-cms\/provider-unsplash"/g)).toHaveLength(1);
+		expect(out.match(/from "emdash\/internal\/media\/local-runtime"/g)).toHaveLength(1);
 	});
 });

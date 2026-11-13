@@ -1,7 +1,8 @@
 import type { AstroIntegration } from "astro";
 import { describe, expect, it, vi } from "vitest";
 
-import { emdash } from "../../../src/astro/integration/index.js";
+import { emdash, resolveEmDashConfig } from "../../../src/astro/integration/index.js";
+import { memoryCache } from "../../../src/astro/object-cache/adapters.js";
 import { local } from "../../../src/astro/storage/adapters.js";
 import { unknownOptionWarning, validateConfigShape } from "../../../src/config/options-schema.js";
 import { sqlite } from "../../../src/db/adapters.js";
@@ -12,11 +13,25 @@ function build(config: unknown) {
 }
 
 describe("emdash() config validation", () => {
-	it("accepts a typical configuration", () => {
+	it("accepts a typical single-site configuration", () => {
 		expect(() =>
 			emdash({
 				database: sqlite({ url: "file:./data.db" }),
 				storage: local({ directory: "./uploads", baseUrl: "/_emdash/api/media/file" }),
+				plugins: [{ id: "audit-log", version: "1.0.0", entrypoint: "audit-log" }],
+				mcp: false,
+				maxUploadSize: 100 * 1024 * 1024,
+				toolbar: "client",
+				fonts: false,
+				admin: { siteName: "Agency CMS", footerLabel: false },
+			}),
+		).not.toThrow();
+	});
+
+	it("accepts a typical multi-site configuration", () => {
+		expect(() =>
+			emdash({
+				database: sqlite({ url: "file:./admin.db" }),
 				plugins: [{ id: "audit-log", version: "1.0.0", entrypoint: "audit-log" }],
 				mcp: false,
 				maxUploadSize: 100 * 1024 * 1024,
@@ -177,7 +192,7 @@ describe("emdash() config validation", () => {
 			const fn = build({
 				sites: [{ id, name: "Site", database: sqlite({ url: "file:./site.db" }) }],
 			});
-			expect(fn).toThrow(`Site ID "${id}" is reserved`);
+			expect(fn).toThrow(`"${id}" is a reserved term and cannot be used as a site ID`);
 			expect(fn).toThrow("→ at sites[0].id");
 		},
 	);
@@ -206,7 +221,121 @@ describe("emdash() config validation", () => {
 				{ id: "admin", name: "Admin 2", database: db },
 			],
 		});
-		expect(fn).toThrow('Site ID "admin" is reserved');
+		expect(fn).toThrow('"admin" is a reserved term and cannot be used as a site ID');
 		expect(fn).not.toThrow("Duplicate site ID");
+	});
+
+	it("rejects top-level storage when sites is configured", () => {
+		const fn = build({
+			database: sqlite({ url: "file:./admin.db" }),
+			storage: local({ directory: "./uploads", baseUrl: "/_emdash/api/media/file" }),
+			sites: [
+				{
+					id: "orange",
+					name: "Orange",
+					database: sqlite({ url: "file:./orange.db" }),
+					storage: local({ directory: "./orange-uploads", baseUrl: "/_emdash/api/media/file" }),
+				},
+			],
+		});
+		expect(fn).toThrow("Top-level `storage` cannot be set when `sites` is configured");
+		expect(fn).toThrow("→ at storage");
+	});
+
+	it("rejects an empty sites array", () => {
+		const fn = build({
+			database: sqlite({ url: "file:./admin.db" }),
+			sites: [],
+		});
+		expect(fn).toThrow("At least one site must be configured");
+		expect(fn).toThrow("→ at sites");
+	});
+
+	it("validates and normalizes per-site siteUrl and migrations", () => {
+		expect(() =>
+			emdash({
+				database: sqlite({ url: "file:./admin.db" }),
+				sites: [
+					{
+						id: "orange",
+						name: "Orange",
+						database: sqlite({ url: "file:./orange.db" }),
+						siteUrl: "ftp://orange.example.com",
+					},
+				],
+			}),
+		).toThrow("sites[0].siteUrl must be http or https");
+
+		expect(() =>
+			emdash({
+				database: sqlite({ url: "file:./admin.db" }),
+				sites: [
+					{
+						id: "orange",
+						name: "Orange",
+						database: sqlite({ url: "file:./orange.db" }),
+						migrations: { runtime: "invalid" as never },
+					},
+				],
+			}),
+		).toThrow("Invalid migrations.runtime");
+	});
+
+	it("leaves root storage undefined and inherits shared site defaults into sites", () => {
+		const sharedCache = memoryCache();
+		const mediaProvider = {
+			id: "custom-provider",
+			name: "Custom",
+			entrypoint: "custom-provider",
+			config: {},
+		};
+		const resolved = resolveEmDashConfig({
+			database: sqlite({ url: "file:./admin.db" }),
+			siteUrl: "https://admin.example.com/ignored-path",
+			migrations: { runtime: "check", dev: "auto" },
+			objectCache: sharedCache,
+			images: false,
+			mcp: false,
+			maxUploadSize: 25 * 1024 * 1024,
+			imagePlaceholders: false,
+			mediaProviders: [mediaProvider],
+			sites: [
+				{
+					id: "orange",
+					name: "Orange",
+					database: sqlite({ url: "file:./orange.db" }),
+					storage: local({ directory: "./orange-uploads", baseUrl: "/_emdash/api/media/file" }),
+				},
+				{
+					id: "purple",
+					name: "Purple",
+					database: sqlite({ url: "file:./purple.db" }),
+					siteUrl: "https://purple.example.com/nested",
+					migrations: { runtime: "manual" },
+					mcp: true,
+					maxUploadSize: 10 * 1024 * 1024,
+				},
+			],
+		});
+
+		expect(resolved.storage).toBeUndefined();
+		expect(resolved.siteUrl).toBe("https://admin.example.com");
+
+		const orange = resolved.sites?.[0];
+		expect(orange?.migrations).toEqual({ runtime: "check", dev: "auto" });
+		expect(orange?.objectCache).toBe(sharedCache);
+		expect(orange?.images).toBe(false);
+		expect(orange?.mcp).toBe(false);
+		expect(orange?.maxUploadSize).toBe(25 * 1024 * 1024);
+		expect(orange?.imagePlaceholders).toBe(false);
+		expect(orange?.mediaProviders).toEqual([mediaProvider]);
+		expect(orange?.siteUrl).toBeUndefined();
+
+		const purple = resolved.sites?.[1];
+		expect(purple?.siteUrl).toBe("https://purple.example.com");
+		expect(purple?.migrations).toEqual({ runtime: "manual" });
+		expect(purple?.mcp).toBe(true);
+		expect(purple?.maxUploadSize).toBe(10 * 1024 * 1024);
+		expect(purple?.objectCache).toBe(sharedCache);
 	});
 });

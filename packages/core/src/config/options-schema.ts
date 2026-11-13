@@ -65,23 +65,26 @@ const siteConfigShape = {
 
 const configShape = {
 	...siteShape,
-	sites: z.array(z.object(siteConfigShape)).superRefine((sites, ctx) => {
-		const seen = new Set<string>();
-		for (const [index, site] of sites.entries()) {
-			if (!isValidSiteId(site.id)) {
-				continue;
+	sites: z
+		.array(z.object(siteConfigShape))
+		.min(1, "At least one site must be configured when `sites` is set")
+		.superRefine((sites, ctx) => {
+			const seen = new Set<string>();
+			for (const [index, site] of sites.entries()) {
+				if (!isValidSiteId(site.id)) {
+					continue;
+				}
+				if (seen.has(site.id)) {
+					ctx.addIssue({
+						code: "custom",
+						path: [index, "id"],
+						message: `Duplicate site ID "${site.id}"`,
+					});
+					continue;
+				}
+				seen.add(site.id);
 			}
-			if (seen.has(site.id)) {
-				ctx.addIssue({
-					code: "custom",
-					path: [index, "id"],
-					message: `Duplicate site ID "${site.id}"`,
-				});
-				continue;
-			}
-			seen.add(site.id);
-		}
-	}),
+		}),
 	plugins: z.array(pluginDescriptor),
 	sandboxed: z.array(pluginDescriptor),
 	sandboxRunner: z.string(),
@@ -122,9 +125,22 @@ const configShape = {
 	astroVersion: z.string(),
 } satisfies { [K in keyof Required<EmDashConfig>]: z.ZodType };
 
-const configSchema = z.looseObject(
-	Object.fromEntries(Object.entries(configShape).map(([key, schema]) => [key, schema.optional()])),
-);
+const configSchema = z
+	.looseObject(
+		Object.fromEntries(
+			Object.entries(configShape).map(([key, schema]) => [key, schema.optional()]),
+		),
+	)
+	.superRefine((config, ctx) => {
+		if (config.sites !== undefined && config.storage !== undefined) {
+			ctx.addIssue({
+				code: "custom",
+				path: ["storage"],
+				message:
+					"Top-level `storage` cannot be set when `sites` is configured; EmDash has no admin-only storage. Configure `storage` on each entry in `sites` instead.",
+			});
+		}
+	});
 
 const KNOWN_OPTIONS = Object.keys(configShape);
 

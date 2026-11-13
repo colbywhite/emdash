@@ -175,6 +175,20 @@ export interface PluginDescriptor<TOptions extends object = object> {
 export type SandboxedPluginDescriptor<TOptions extends object = object> =
 	PluginDescriptor<TOptions>;
 
+/**
+ * Site-scoped configuration options.
+ *
+ * In single-site deployments (`sites` omitted), these are set at the top level
+ * of `EmDashConfig`. In multi-site deployments (`sites` configured):
+ * - Top-level `database` and `siteUrl` configure the admin database and origin,
+ *   while each entry in `sites` configures its own `database` (required) and
+ *   optional `siteUrl`.
+ * - `storage` is site-scoped only (EmDash has no admin-only storage) and cannot
+ *   be set at the top level when `sites` is present.
+ * - Remaining top-level site options (`migrations`, `objectCache`, `images`,
+ *   `mcp`, `maxUploadSize`, `imagePlaceholders`, `mediaProviders`) act as
+ *   inherited defaults for entries in `sites` that do not override them.
+ */
 export interface EmDashSiteOptions {
 	/**
 	 * Database configuration
@@ -183,6 +197,10 @@ export interface EmDashSiteOptions {
 	 * - `sqlite({ url: "file:./data.db" })` - Local SQLite
 	 * - `libsql({ url: "...", authToken: "..." })` - Turso/libSQL
 	 * - `d1({ binding: "DB" })` - Cloudflare D1
+	 *
+	 * In multi-site deployments (`sites` configured), top-level `database` is
+	 * the dedicated admin database (for users, auth, and site metadata), while
+	 * each site entry configures its own isolated `database`.
 	 *
 	 * @example
 	 * ```ts
@@ -194,10 +212,19 @@ export interface EmDashSiteOptions {
 	 * ```
 	 */
 	database?: DatabaseDescriptor;
-	/** Core database migration behavior at runtime. Defaults to `auto`. */
+	/**
+	 * Core database migration behavior at runtime. Defaults to `auto`.
+	 *
+	 * In multi-site deployments, top-level `migrations` configures the admin
+	 * database and serves as the default for sites that do not override it.
+	 */
 	migrations?: RuntimeMigrationConfig;
 	/**
-	 * Storage configuration (for media)
+	 * Storage configuration (for site media).
+	 *
+	 * EmDash has no admin-only storage — every storage consumer is site-scoped.
+	 * When `sites` is configured, top-level `storage` is disallowed; configure
+	 * `storage` on each site entry instead.
 	 */
 	storage?: StorageDescriptor;
 
@@ -213,6 +240,11 @@ export interface EmDashSiteOptions {
 	 * Use a backend adapter:
 	 * - `memoryCache()` from `emdash/astro` — in-isolate (Node / local dev)
 	 * - `kvCache({ binding: "CACHE" })` from `@emdash-cms/cloudflare` — KV
+	 *
+	 * EmDash has no admin-only object cache. In multi-site deployments,
+	 * `objectCache` can be configured per site or set at the top level as a
+	 * shared default inherited by sites that do not override it (cache keys and
+	 * epochs are partitioned by site).
 	 *
 	 * Preview and visual-edit requests bypass the cache, so editors previewing
 	 * see live content. All other reads — including authenticated browsing outside
@@ -286,15 +318,17 @@ export interface EmDashSiteOptions {
 	 */
 	imagePlaceholders?: boolean;
 	/**
-	 * Public browser-facing origin for the site.
+	 * Public browser-facing origin for the site (or the admin deployment when `sites` is set).
 	 *
 	 * Use when `Astro.url` / `request.url` do not match what users open — common with a
 	 * **TLS-terminating reverse proxy**: the app often sees `http://` on the internal hop
 	 * while the browser uses `https://`, which breaks WebAuthn, CSRF, OAuth, and redirect URLs.
 	 *
 	 * Set to the full origin users type in the address bar (no path), e.g.
-	 * `https://mysite.example.com`. When not set, falls back to environment variables
-	 * `EMDASH_SITE_URL` > `SITE_URL`, then to the request URL's origin.
+	 * `https://mysite.example.com`. When not set at the top level, falls back to
+	 * environment variables `EMDASH_SITE_URL` > `SITE_URL`, then to the request URL's origin.
+	 * In multi-site deployments, each site entry can configure its own `siteUrl` without
+	 * inheriting the top-level admin origin.
 	 *
 	 * Replaces `passkeyPublicOrigin` (which only fixed passkeys).
 	 */
@@ -336,8 +370,16 @@ export interface EmDashConfig extends EmDashSiteOptions {
 	/**
 	 * Per-site configurations for multi-site deployments.
 	 *
-	 * When configured, top-level `database` and `storage` serve as the admin
-	 * database and storage, while each entry configures an isolated site.
+	 * When configured:
+	 * - Top-level `database` serves as the dedicated admin database (for users,
+	 *   auth, and site metadata), and top-level `siteUrl` sets the admin origin.
+	 * - Each entry configures an isolated site with its own `database` (and
+	 *   optional `storage`).
+	 * - Top-level `storage` is disallowed because EmDash has no admin-only
+	 *   storage; configure `storage` per site instead.
+	 * - Other top-level site options (`migrations`, `objectCache`, `images`,
+	 *   `mcp`, `maxUploadSize`, `imagePlaceholders`, `mediaProviders`) serve as
+	 *   defaults inherited by sites that do not override them.
 	 */
 	sites?: EmDashSiteConfig[];
 	/**

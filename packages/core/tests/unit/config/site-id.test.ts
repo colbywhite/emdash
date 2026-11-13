@@ -16,7 +16,9 @@ describe("site-id validation", () => {
 			expect(isValidSiteId(id)).toBe(false);
 			const result = siteIdSchema.safeParse(id);
 			expect(result.success).toBe(false);
-			expect(result.error?.issues[0]?.message).toBe(`Site ID "${id}" is reserved`);
+			expect(result.error?.issues[0]?.message).toBe(
+				`"${id}" is a reserved term and cannot be used as a site ID`,
+			);
 		},
 	);
 

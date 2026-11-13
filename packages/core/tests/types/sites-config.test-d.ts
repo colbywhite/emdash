@@ -1,3 +1,5 @@
+import type { AstroIntegration } from "astro";
+import emdash from "emdash/astro";
 import { describe, expectTypeOf, it } from "vitest";
 
 import type {
@@ -10,7 +12,7 @@ import { local } from "../../src/astro/storage/adapters.js";
 import { sqlite } from "../../src/db/adapters.js";
 
 describe("EmDashConfig sites", () => {
-	it("accepts optional per-site configurations alongside root admin database and storage", () => {
+	it("accepts optional per-site configurations alongside root admin database and site defaults", () => {
 		const singleSite: EmDashConfig = {
 			database: sqlite({ url: "file:./data.db" }),
 			storage: local({ directory: "./uploads", baseUrl: "/_emdash/api/media/file" }),
@@ -18,7 +20,8 @@ describe("EmDashConfig sites", () => {
 
 		const multiSite: EmDashConfig = {
 			database: sqlite({ url: "file:./admin.db" }),
-			storage: local({ directory: "./admin-uploads", baseUrl: "/_emdash/api/media/file" }),
+			objectCache: memoryCache(),
+			maxUploadSize: 50 * 1024 * 1024,
 			sites: [
 				{
 					id: "orange",
@@ -44,6 +47,43 @@ describe("EmDashConfig sites", () => {
 
 		expectTypeOf(singleSite.sites).toEqualTypeOf<EmDashSiteConfig[] | undefined>();
 		expectTypeOf(multiSite.sites).toEqualTypeOf<EmDashSiteConfig[] | undefined>();
+	});
+
+	it("disallows top-level storage in emdash() when sites is configured", () => {
+		const single = emdash({
+			database: sqlite({ url: "file:./data.db" }),
+			storage: local({ directory: "./uploads", baseUrl: "/_emdash/api/media/file" }),
+		});
+
+		const multi = emdash({
+			database: sqlite({ url: "file:./admin.db" }),
+			sites: [
+				{
+					id: "orange",
+					name: "Orange",
+					database: sqlite({ url: "file:./orange.db" }),
+					storage: local({ directory: "./orange-uploads", baseUrl: "/_emdash/api/media/file" }),
+				},
+			],
+		});
+
+		const invalidMulti = () =>
+			emdash({
+				database: sqlite({ url: "file:./admin.db" }),
+				// @ts-expect-error -- top-level storage is disallowed when sites is set
+				storage: local({ directory: "./uploads", baseUrl: "/_emdash/api/media/file" }),
+				sites: [
+					{
+						id: "orange",
+						name: "Orange",
+						database: sqlite({ url: "file:./orange.db" }),
+					},
+				],
+			});
+
+		expectTypeOf(single).toEqualTypeOf<AstroIntegration>();
+		expectTypeOf(multi).toEqualTypeOf<AstroIntegration>();
+		expectTypeOf(invalidMulti).returns.toEqualTypeOf<AstroIntegration>();
 	});
 
 	it("limits site entries to id, name, plus site-specific EmDashSiteOptions", () => {

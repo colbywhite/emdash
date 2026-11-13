@@ -50,7 +50,7 @@ import {
 	injectAuthProviderRoutes,
 	injectMcpRoute,
 } from "./routes.js";
-import type { EmDashConfig } from "./runtime.js";
+import type { EmDashConfig, EmDashSiteConfig } from "./runtime.js";
 import { createViteConfig, resolveAdminDist } from "./vite-config.js";
 
 // Re-export runtime types and functions
@@ -459,31 +459,81 @@ function assertNoRemovedRegistryOption(config: EmDashConfig): void {
 	}
 }
 
-/**
- * Create the EmDash Astro integration
- */
-export function emdash(config: EmDashConfig = {}): AstroIntegration {
-	assertNoRemovedRegistryOption(config);
-	const unknownOptions = validateConfigShape(config);
+function normalizeSiteUrl(raw: string, path: string): string {
+	try {
+		const parsed = new URL(raw);
+		if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+			throw new Error(`${path} must be http or https (got ${parsed.protocol})`);
+		}
+		// Always store origin-normalized value (no path) — security invariant L-1
+		return parsed.origin;
+	} catch (e) {
+		if (e instanceof TypeError) {
+			throw new Error(`Invalid ${path}: "${raw}"`, { cause: e });
+		}
+		throw e;
+	}
+}
 
+/**
+ * Normalize and apply top-level defaults onto an `EmDashConfig`.
+ *
+ * When `sites` is configured, top-level `storage` is left `undefined` (EmDash
+ * has no admin-only storage) and shared top-level site options act as defaults
+ * inherited by site entries that do not override them.
+ *
+ * @internal Exported for unit testing.
+ */
+export function resolveEmDashConfig(config: EmDashConfig): EmDashConfig {
 	const registry = resolveRegistryConfigForSandbox({
 		registry: config.registry,
 		sandboxRunner: config.sandboxRunner,
 		sandboxEnabled: config.sandbox !== false,
 	});
-
-	// Apply defaults
-	const resolvedConfig: EmDashConfig = {
-		...config,
-		storage: config.storage ?? DEFAULT_STORAGE,
-		migrations: normalizeMigrationConfig(config.migrations),
-		registry: config.registry === false ? false : registry,
-	};
-
 	// Validate environment-independent registry settings while Astro is still
 	// evaluating its config. The command-aware check in astro:config:setup
 	// applies the stricter production localhost policy.
 	normalizeRegistryConfig(registry, { allowLocalhost: true });
+
+	const migrations = normalizeMigrationConfig(config.migrations);
+
+	const resolvedSites: EmDashSiteConfig[] | undefined = config.sites?.map((site, index) => {
+		const resolved: EmDashSiteConfig = {
+			...site,
+			migrations:
+				site.migrations !== undefined ? normalizeMigrationConfig(site.migrations) : migrations,
+		};
+		if (site.siteUrl) {
+			resolved.siteUrl = normalizeSiteUrl(site.siteUrl, `sites[${index}].siteUrl`);
+		}
+		if (resolved.objectCache === undefined && config.objectCache !== undefined) {
+			resolved.objectCache = config.objectCache;
+		}
+		if (resolved.images === undefined && config.images !== undefined) {
+			resolved.images = config.images;
+		}
+		if (resolved.mcp === undefined && config.mcp !== undefined) {
+			resolved.mcp = config.mcp;
+		}
+		if (resolved.maxUploadSize === undefined && config.maxUploadSize !== undefined) {
+			resolved.maxUploadSize = config.maxUploadSize;
+		}
+		if (resolved.imagePlaceholders === undefined && config.imagePlaceholders !== undefined) {
+			resolved.imagePlaceholders = config.imagePlaceholders;
+		}
+		if (resolved.mediaProviders === undefined && config.mediaProviders !== undefined) {
+			resolved.mediaProviders = config.mediaProviders;
+		}
+		return resolved;
+	});
+
+	const resolvedConfig: EmDashConfig = {
+		...config,
+		storage: config.sites ? undefined : (config.storage ?? DEFAULT_STORAGE),
+		migrations,
+		registry: config.registry === false ? false : registry,
+		...(resolvedSites !== undefined ? { sites: resolvedSites } : {}),
+	};
 
 	const updateCheckAge =
 		typeof resolvedConfig.updateCheck === "object"
@@ -525,20 +575,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 	// resolvedConfig.siteUrl here — so Docker images built without a domain can
 	// pick it up at container start via process.env.
 	if (resolvedConfig.siteUrl) {
-		const raw = resolvedConfig.siteUrl;
-		try {
-			const parsed = new URL(raw);
-			if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-				throw new Error(`siteUrl must be http or https (got ${parsed.protocol})`);
-			}
-			// Always store origin-normalized value (no path) — security invariant L-1
-			resolvedConfig.siteUrl = parsed.origin;
-		} catch (e) {
-			if (e instanceof TypeError) {
-				throw new Error(`Invalid siteUrl: "${raw}"`, { cause: e });
-			}
-			throw e;
-		}
+		resolvedConfig.siteUrl = normalizeSiteUrl(resolvedConfig.siteUrl, "siteUrl");
 	}
 
 	// Validate config.allowedOrigins shape at startup (per-entry rules: parseable,
@@ -556,6 +593,28 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 			? validateAllowedOrigins(resolvedConfig.siteUrl, tagged)
 			: validateOriginShape(tagged);
 	}
+
+	return resolvedConfig;
+}
+
+/**
+ * Create the EmDash Astro integration
+ */
+export function emdash<T extends EmDashConfig = EmDashConfig>(
+	config?: T extends { sites: readonly EmDashSiteConfig[] }
+		? Omit<T, "storage"> & { storage?: never }
+		: T,
+): AstroIntegration {
+	const rawConfig: EmDashConfig = config ?? {};
+	assertNoRemovedRegistryOption(rawConfig);
+	const unknownOptions = validateConfigShape(rawConfig);
+
+	const registry = resolveRegistryConfigForSandbox({
+		registry: rawConfig.registry,
+		sandboxRunner: rawConfig.sandboxRunner,
+		sandboxEnabled: rawConfig.sandbox !== false,
+	});
+	const resolvedConfig = resolveEmDashConfig(rawConfig);
 
 	// Plugin descriptors from config
 	const pluginDescriptors = resolvedConfig.plugins ?? [];
@@ -593,17 +652,17 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		}
 	}
 
-	if (config.admin?.locales !== undefined) {
+	if (rawConfig.admin?.locales !== undefined) {
 		const manifest = readAdminLocaleManifest(resolveAdminDist());
 		resolvedConfig.admin = {
-			...config.admin,
-			locales: resolveAdminLocales(config.admin.locales, Object.keys(manifest)),
+			...rawConfig.admin,
+			locales: resolveAdminLocales(rawConfig.admin.locales, Object.keys(manifest)),
 		};
 	}
-	if (config.admin?.hiddenNavItems !== undefined) {
+	if (rawConfig.admin?.hiddenNavItems !== undefined) {
 		resolvedConfig.admin = {
 			...resolvedConfig.admin,
-			hiddenNavItems: resolveHiddenNavItems(config.admin.hiddenNavItems),
+			hiddenNavItems: resolveHiddenNavItems(rawConfig.admin.hiddenNavItems),
 		};
 	}
 

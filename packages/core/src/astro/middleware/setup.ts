@@ -24,15 +24,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (isAdminRoute && !isSetupRoute) {
 		// Check if setup is complete
 		const { emdash } = context.locals;
+		const setupDb = emdash?.adminDb ?? emdash?.db;
 
-		if (!emdash?.db) {
+		if (!setupDb) {
 			// No database configured - let the admin handle this error
 			return next();
 		}
 
 		try {
 			// Check setup_complete flag
-			const setupComplete = await emdash.db
+			const setupComplete = await setupDb
 				.selectFrom("options")
 				.select("value")
 				.where("name", "=", "emdash:setup_complete")
@@ -63,7 +64,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			if (authMode.type === "passkey") {
 				// Setup is marked complete, but verify users exist
 				// This catches edge case where setup_complete is true but no users
-				const userCount = await emdash.db
+				const userCount = await setupDb
 					.selectFrom("users")
 					.select((eb) => eb.fn.countAll<number>().as("count"))
 					.executeTakeFirstOrThrow();

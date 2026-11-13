@@ -26,7 +26,7 @@ export const GET: APIRoute = async ({ locals }) => {
 		if (!emdash) return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 
 		try {
-			const persistedUser = await new UserRepository(emdash.db).findById(user.id);
+			const persistedUser = await new UserRepository(emdash.adminDb ?? emdash.db).findById(user.id);
 			if (persistedUser) userData = persistedUser.data;
 		} catch (error) {
 			return handleError(error, "Failed to fetch current user", "CURRENT_USER_ERROR");
@@ -70,7 +70,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	const body = await parseBody(request, authMeActionBody);
 	if (isParseError(body)) return body;
 
-	const users = new UserRepository(emdash.db);
+	const users = new UserRepository(emdash.adminDb ?? emdash.db);
 
 	switch (body.action) {
 		case "dismissWelcome": {

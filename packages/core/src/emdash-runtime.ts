@@ -812,6 +812,13 @@ export class EmDashRuntime {
 	 * for per-request overrides (D1 read replica sessions, DO multi-site).
 	 */
 	private readonly _db: Kysely<Database>;
+	/**
+	 * Shared Admin database (users, auth, site metadata). In single-site mode
+	 * this is the same handle as `_db`.
+	 */
+	get adminDb(): Kysely<Database> {
+		return this._db;
+	}
 	readonly storage: Storage | null;
 	readonly configuredPlugins: ResolvedPlugin[];
 	readonly sandboxedPlugins: Map<string, SandboxedPluginInstance>;
@@ -2898,14 +2905,14 @@ export class EmDashRuntime {
 	/**
 	 * Get or create storage instance
 	 */
-	static getStorage(deps: RuntimeDependencies): Storage | null {
+	static getStorage(deps: RuntimeDependencies, options?: { cacheKey?: string }): Storage | null {
 		const storageConfig = deps.config.storage;
 		if (!storageConfig || !deps.createStorage) {
 			return null;
 		}
 
 		const storageCache = getStorageCache();
-		const cacheKey = storageConfig.entrypoint;
+		const cacheKey = options?.cacheKey ?? storageConfig.entrypoint;
 		const cached = storageCache.get(cacheKey);
 		if (cached) {
 			return cached;

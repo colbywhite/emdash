@@ -202,20 +202,19 @@ export function isSafeTransformKey(key: string): boolean {
 	return SAFE_STORAGE_KEY.test(key);
 }
 
+const SITE_INTERNAL_MEDIA_RE = /^\/_emdash\/api\/site\/([^/]+)\/media\/file\/(.*)$/;
+
+export interface InternalMediaRef {
+	key: string;
+	siteId?: string;
+}
+
 /**
- * If `href` points at the internal EmDash media route
- * (`/_emdash/api/media/file/{key}`) with a safe key, return the key; otherwise
- * `null` (the endpoint then delegates to the stock image endpoint for bundled
- * assets, allowed remote, and `publicUrl` media).
- *
- * The component absolutizes same-origin media (Astro only optimizes absolute,
- * remote-allowed URLs), so `href` is typically `https://site/_emdash/...` but
- * may be relative. We match on the **pathname** only and never fetch `href` —
- * the key is read from our own storage — so the host is irrelevant and can't be
- * an SSRF vector. A dummy base resolves both absolute and relative forms and
- * strips any query/fragment.
+ * Parse an internal EmDash media route URL (`/_emdash/api/media/file/{key}`
+ * or `/_emdash/api/site/{siteId}/media/file/{key}`) and return its safe key
+ * plus optional `siteId`.
  */
-export function matchInternalMediaKey(href: string | null | undefined): string | null {
+export function matchInternalMediaRef(href: string | null | undefined): InternalMediaRef | null {
 	if (!href) return null;
 	let pathname: string;
 	try {
@@ -223,10 +222,28 @@ export function matchInternalMediaKey(href: string | null | undefined): string |
 	} catch {
 		return null;
 	}
-	if (!pathname.startsWith(INTERNAL_MEDIA_PREFIX)) return null;
-	const key = pathname.slice(INTERNAL_MEDIA_PREFIX.length);
-	if (!key || !isSafeTransformKey(key)) return null;
-	return key;
+	if (pathname.startsWith(INTERNAL_MEDIA_PREFIX)) {
+		const key = pathname.slice(INTERNAL_MEDIA_PREFIX.length);
+		if (!key || !isSafeTransformKey(key)) return null;
+		return { key };
+	}
+	const siteMatch = SITE_INTERNAL_MEDIA_RE.exec(pathname);
+	if (siteMatch) {
+		const siteId = siteMatch[1];
+		const key = siteMatch[2];
+		if (!siteId || !key || !isSafeTransformKey(key)) return null;
+		return { siteId, key };
+	}
+	return null;
+}
+
+/**
+ * If `href` points at the internal EmDash media route
+ * (`/_emdash/api/media/file/{key}` or `/_emdash/api/site/{siteId}/media/file/{key}`)
+ * with a safe key, return the key; otherwise `null`.
+ */
+export function matchInternalMediaKey(href: string | null | undefined): string | null {
+	return matchInternalMediaRef(href)?.key ?? null;
 }
 
 /** Type guard for {@link ImageTransformFormat}. */

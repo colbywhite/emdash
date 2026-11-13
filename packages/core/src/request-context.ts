@@ -19,9 +19,11 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 
+import type { EmDashSiteConfig } from "./astro/integration/runtime.js";
 import type { QueryRecorder } from "./database/instrumentation.js";
 import type { DeferredTaskTracker } from "./deferred-tasks.js";
 import type { SiteSettings } from "./settings/types.js";
+import type { Storage } from "./storage/types.js";
 
 /**
  * Lightweight always-on counters surfaced in Server-Timing.
@@ -121,12 +123,27 @@ export interface EmDashRequestContext {
 	metrics?: RequestMetrics;
 	/** Deferred work that owns resources scoped to this request. */
 	deferredTasks?: DeferredTaskTracker;
+	/** Active site in multi-site deployments. Undefined at root admin or in single-site mode. */
+	site?: {
+		id: string;
+		name: string;
+		config: EmDashSiteConfig;
+	};
+	/** Per-request storage override (active site's storage in multi-site mode, or null at root admin). */
+	storage?: Storage | null;
 	/**
 	 * Resolves a storage key to its public URL through the configured storage
 	 * adapter, so code without `Astro.locals` (site settings) honors `publicUrl`.
 	 * @internal
 	 */
 	publicMediaUrl?: (storageKey: string) => string;
+}
+
+/**
+ * Get the active cache-partition key for the current request (`site.id` or `"default"`).
+ */
+export function getActiveSiteKey(): string {
+	return getRequestContext()?.site?.id ?? "default";
 }
 
 const ALS_KEY = Symbol.for("emdash:request-context");

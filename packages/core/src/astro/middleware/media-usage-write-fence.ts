@@ -3,6 +3,7 @@ import { defineMiddleware } from "astro:middleware";
 import { apiError } from "#api/error.js";
 
 import { readSiteWriteFence, recordSiteWrite } from "../../transfer/fence.js";
+import { normalizeSiteApiPathname } from "../site-routing.js";
 
 const API_PREFIX = "/_emdash/api/";
 
@@ -91,7 +92,7 @@ export function siteWriteFenceScope(
 	pathname: string,
 ): SiteWriteRequestScope | null {
 	if (SAFE_METHODS.has(method.toUpperCase())) return null;
-	const path = normalizePathname(pathname);
+	const path = normalizePathname(normalizeSiteApiPathname(pathname));
 	if (!path.startsWith(API_PREFIX)) return null;
 	if (ROUTE_CHECKED_PATTERNS.some((pattern) => pattern.test(path))) {
 		return { transfer: false, mediaUsage: false, recordWrite: true };

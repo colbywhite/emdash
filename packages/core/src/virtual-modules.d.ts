@@ -62,6 +62,7 @@ declare module "virtual:emdash/dialect" {
 	 */
 	export interface RequestScopedDbOpts {
 		config: unknown;
+		siteId?: string;
 		isAuthenticated: boolean;
 		/**
 		 * Evaluated at commit() time: whether the request ended authenticated.

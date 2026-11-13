@@ -14,7 +14,9 @@ import { resolveSiteTitle } from "#api/site-title.js";
 import { getAuthMode } from "#auth/mode.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { OptionsRepository } from "#db/repositories/options.js";
+import { resolvePublicMediaUrl } from "#media/url.js";
 
+import { getRequestContext } from "../../../request-context.js";
 import { COMMIT, VERSION } from "../../../version.js";
 import type { EmDashManifest } from "../../types.js";
 
@@ -97,7 +99,13 @@ export const GET: APIRoute = async ({ locals }) => {
 					if (media) {
 						adminBranding = {
 							...adminBranding,
-							logo: `/_emdash/api/media/file/${media.storageKey}`,
+							logo: emdash.getPublicMediaUrl
+								? emdash.getPublicMediaUrl(media.storageKey)
+								: resolvePublicMediaUrl(
+										emdash.storage,
+										media.storageKey,
+										getRequestContext()?.site?.id,
+									),
 						};
 					}
 				}
@@ -109,12 +117,13 @@ export const GET: APIRoute = async ({ locals }) => {
 		// Check if self-signup is enabled (any allowed domain with enabled = 1)
 		// Only relevant for passkey auth — external auth providers handle their own signup
 		let signupEnabled = false;
-		if (emdash?.db && authMode.type === "passkey") {
+		const authDb = emdash?.adminDb ?? emdash?.db;
+		if (authDb && authMode.type === "passkey") {
 			try {
 				const { sql } = await import("kysely");
 				const result = await sql<{ cnt: unknown }>`
 					SELECT COUNT(*) as cnt FROM allowed_domains WHERE enabled = 1
-				`.execute(emdash.db);
+				`.execute(authDb);
 				signupEnabled = Number(result.rows[0]?.cnt ?? 0) > 0;
 			} catch {
 				// Table may not exist yet, that's fine

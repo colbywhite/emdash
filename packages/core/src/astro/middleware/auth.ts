@@ -37,7 +37,9 @@ import { hasScope, TRANSFER_SCOPES } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { AuthResult, ExternalAuthConfig } from "../../auth/types.js";
 import { getRegistryConfigInput } from "../../registry/config.js";
+import { getRequestContext } from "../../request-context.js";
 import { resolveSessionUser } from "../session-user.js";
+import { normalizeSiteApiPathname } from "../site-routing.js";
 import type { EmDashHandlers } from "../types.js";
 import { buildEmDashCsp, getConfiguredStorageEndpoint } from "./csp.js";
 
@@ -191,12 +193,13 @@ function isCsrfExemptPublicRoute(pathname: string): boolean {
 
 export const onRequest = defineMiddleware(async (context, next) => {
 	const { url } = context;
+	const normalizedPathname = normalizeSiteApiPathname(url.pathname);
 
 	// Only check auth on admin routes and API routes
 	const isAdminRoute = url.pathname.startsWith("/_emdash/admin");
 	const isSetupRoute = url.pathname.startsWith("/_emdash/admin/setup");
-	const isApiRoute = url.pathname.startsWith("/_emdash/api");
-	const isPublicApiRoute = isPublicEmDashRoute(url.pathname);
+	const isApiRoute = normalizedPathname.startsWith("/_emdash/api");
+	const isPublicApiRoute = isPublicEmDashRoute(normalizedPathname);
 
 	const isPublicRoute = !isAdminRoute && !isApiRoute;
 
@@ -207,20 +210,20 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const method = context.request.method.toUpperCase();
 		if (
 			isUnsafeMethod(method) &&
-			!isCsrfExemptPublicRoute(url.pathname) // OAuth protocol endpoints — cross-origin by design
+			!isCsrfExemptPublicRoute(normalizedPathname) // OAuth protocol endpoints — cross-origin by design
 		) {
 			const publicOrigin = getPublicOrigin(url, context.locals.emdash?.config);
 			const csrfError = checkPublicCsrf(context.request, url, publicOrigin);
 			if (csrfError) return csrfError;
 		}
-		if (method === "POST" && COMMENT_SUBMISSION_PATH.test(url.pathname)) {
+		if (method === "POST" && COMMENT_SUBMISSION_PATH.test(normalizedPathname)) {
 			return handlePublicRouteAuth(context, next);
 		}
 		// Search filters drafts by permission, so resolve the session user when
 		// one exists; anonymous callers skip the user DB lookup. Bearer tokens
 		// are not resolved on public routes; token callers continue to receive
 		// published results only.
-		if (stripTrailingSlash(url.pathname) === "/_emdash/api/search") {
+		if (stripTrailingSlash(normalizedPathname) === "/_emdash/api/search") {
 			return handlePublicRouteAuth(context, next);
 		}
 		return next();
@@ -230,7 +233,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// The catch-all handler decides per-route whether auth is required (public vs private).
 	// Public plugin routes that accept POST are vulnerable to cross-origin form submissions,
 	// so we apply the same Origin-based CSRF check as other public routes.
-	const isPluginRoute = url.pathname.startsWith("/_emdash/api/plugins/");
+	const isPluginRoute = normalizedPathname.startsWith("/_emdash/api/plugins/");
 	if (isPluginRoute) {
 		const method = context.request.method.toUpperCase();
 		if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
@@ -238,7 +241,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			const csrfError = checkPublicCsrf(context.request, url, publicOrigin);
 			if (csrfError) return csrfError;
 		}
-		return handlePluginRouteAuth(context, next);
+		return handlePluginRouteAuth(context, next, normalizedPathname);
 	}
 
 	// Setup routes: skip auth but still enforce CSRF on state-changing methods
@@ -257,7 +260,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				buildEmDashCsp(
 					getRegistryConfigInput(context.locals.emdash?.config.registry),
 					getConfiguredStorageEndpoint(
-						context.locals.emdash?.config.storage,
+						getRequestContext()?.site?.config.storage ?? context.locals.emdash?.config.storage,
 						context.locals.emdash?.storage,
 					),
 				),
@@ -280,7 +283,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (bearerResult === "invalid") {
 		const response = apiError("INVALID_TOKEN", "Invalid or expired token", 401);
 		// Add WWW-Authenticate header on MCP endpoint 401s to trigger OAuth discovery
-		if (url.pathname === "/_emdash/api/mcp") {
+		if (normalizedPathname === MCP_ENDPOINT_PATH) {
 			const origin = getPublicOrigin(url, context.locals.emdash?.config);
 			response.headers.set(
 				"WWW-Authenticate",
@@ -296,7 +299,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// be consulted for this endpoint, and unauthenticated requests must return
 	// the OAuth discovery-style 401 response.
 	const method = context.request.method.toUpperCase();
-	const isMcpEndpoint = url.pathname === MCP_ENDPOINT_PATH;
+	const isMcpEndpoint = normalizedPathname === MCP_ENDPOINT_PATH;
 	if (isMcpEndpoint && !isTokenAuth) {
 		return mcpUnauthorizedResponse(url, context.locals.emdash?.config);
 	}
@@ -306,7 +309,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// Browsers block cross-origin custom headers, so this prevents CSRF without tokens.
 	// OAuth authorize consent is exempt: it's a standard HTML form POST that can't
 	// include custom headers. The consent flow is protected by session + single-use codes.
-	const isOAuthConsent = url.pathname.startsWith("/_emdash/oauth/authorize");
+	const isOAuthConsent = normalizedPathname.startsWith("/_emdash/oauth/authorize");
 	if (
 		isApiRoute &&
 		!isTokenAuth &&
@@ -323,7 +326,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// If already authenticated via Bearer token, enforce scope then skip session/external auth
 	if (isTokenAuth) {
 		// Enforce API token scopes based on URL pattern + HTTP method
-		const scopeError = enforceTokenScope(url.pathname, method, context.locals.tokenScopes);
+		const scopeError = enforceTokenScope(normalizedPathname, method, context.locals.tokenScopes);
 		if (scopeError) return scopeError;
 
 		const response = await next();
@@ -333,7 +336,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				buildEmDashCsp(
 					getRegistryConfigInput(context.locals.emdash?.config.registry),
 					getConfiguredStorageEndpoint(
-						context.locals.emdash?.config.storage,
+						getRequestContext()?.site?.config.storage ?? context.locals.emdash?.config.storage,
 						context.locals.emdash?.storage,
 					),
 				),
@@ -342,7 +345,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		return response;
 	}
 
-	const response = await handleEmDashAuth(context, next);
+	const response = await handleEmDashAuth(context, next, isApiRoute);
 
 	// Set strict CSP on all /_emdash responses (prod only)
 	if (!import.meta.env.DEV) {
@@ -368,6 +371,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 async function handleEmDashAuth(
 	context: Parameters<Parameters<typeof defineMiddleware>[0]>[0],
 	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
+	isApiRoute: boolean,
 ): Promise<Response> {
 	const { url, locals } = context;
 	const { emdash } = locals;
@@ -378,9 +382,9 @@ async function handleEmDashAuth(
 		url.pathname.startsWith("/_emdash/admin/login") ||
 		url.pathname.startsWith("/_emdash/admin/signup") ||
 		url.pathname.startsWith("/_emdash/admin/invite/accept");
-	const isApiRoute = url.pathname.startsWith("/_emdash/api");
 
-	if (!emdash?.db) {
+	const authDb = emdash?.adminDb ?? emdash?.db;
+	if (!authDb) {
 		// No database - let the admin handle this error
 		return next();
 	}
@@ -431,8 +435,9 @@ async function handleEmDashAuth(
 async function handlePluginRouteAuth(
 	context: Parameters<Parameters<typeof defineMiddleware>[0]>[0],
 	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
+	normalizedPathname: string,
 ): Promise<Response> {
-	const { locals, url } = context;
+	const { locals } = context;
 	const { emdash } = locals;
 
 	try {
@@ -456,7 +461,7 @@ async function handlePluginRouteAuth(
 	if (
 		authMode.type === "external" &&
 		!import.meta.env.DEV &&
-		!isPublicPluginApiRoute(url.pathname, emdash)
+		!isPublicPluginApiRoute(normalizedPathname, emdash)
 	) {
 		return handleExternalAuth(context, next, authMode, true);
 	}
@@ -465,8 +470,9 @@ async function handlePluginRouteAuth(
 		// Try session auth (sets locals.user if session exists)
 		const { session } = context;
 		const sessionUser = await resolveSessionUser(session);
-		if (sessionUser?.id && emdash?.db) {
-			const adapter = createKyselyAdapter(emdash.db);
+		const authDb = emdash?.adminDb ?? emdash?.db;
+		if (sessionUser?.id && authDb) {
+			const adapter = createKyselyAdapter(authDb);
 			const user = await adapter.getUserById(sessionUser.id);
 			if (user && !user.disabled) {
 				locals.user = user;
@@ -504,8 +510,9 @@ async function handlePublicRouteAuth(
 
 	try {
 		const sessionUser = await resolveSessionUser(session);
-		if (sessionUser?.id && emdash?.db) {
-			const adapter = createKyselyAdapter(emdash.db);
+		const authDb = emdash?.adminDb ?? emdash?.db;
+		if (sessionUser?.id && authDb) {
+			const adapter = createKyselyAdapter(authDb);
 			const user = await adapter.getUserById(sessionUser.id);
 			if (user && !user.disabled) {
 				locals.user = user;
@@ -555,9 +562,10 @@ async function handleExternalAuth(
 		// Get external auth config for auto-provision settings
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowing AuthModeConfig to ExternalAuthConfig after provider check
 		const externalConfig = authMode.config as ExternalAuthConfig;
+		const authDb = emdash.adminDb ?? emdash.db;
 
 		// Find or create user
-		const adapter = createKyselyAdapter(emdash.db);
+		const adapter = createKyselyAdapter(authDb);
 		let user = await adapter.getUserByEmail(authResult.email);
 
 		if (!user) {
@@ -570,9 +578,9 @@ async function handleExternalAuth(
 			}
 
 			// Check if this is the first user (they become admin)
-			const userCount = await emdash.db
+			const userCount = await authDb
 				.selectFrom("users")
-				.select(emdash.db.fn.count("id").as("count"))
+				.select(authDb.fn.count("id").as("count"))
 				.executeTakeFirst();
 
 			const isFirstUser = Number(userCount?.count ?? 0) === 0;
@@ -590,7 +598,7 @@ async function handleExternalAuth(
 				updated_at: now,
 			};
 
-			await emdash.db.insertInto("users").values(newUser).execute();
+			await authDb.insertInto("users").values(newUser).execute();
 
 			user = await adapter.getUserByEmail(authResult.email);
 
@@ -616,7 +624,7 @@ async function handleExternalAuth(
 
 			if (Object.keys(updates).length > 0) {
 				updates.updated_at = new Date().toISOString();
-				await emdash.db.updateTable("users").set(updates).where("id", "=", user.id).execute();
+				await authDb.updateTable("users").set(updates).where("id", "=", user.id).execute();
 
 				user = {
 					...user,
@@ -692,15 +700,16 @@ async function handleBearerAuth(
 
 	const { locals } = context;
 	const { emdash } = locals;
-	if (!emdash?.db) return "none";
+	const authDb = emdash?.adminDb ?? emdash?.db;
+	if (!authDb) return "none";
 
 	// Resolve token based on prefix
 	let resolved: ResolvedBearerToken | null = null;
 
 	if (token.startsWith("ec_pat_")) {
-		resolved = await resolveApiToken(emdash.db, token);
+		resolved = await resolveApiToken(authDb, token);
 	} else if (token.startsWith("ec_oat_")) {
-		resolved = await resolveOAuthToken(emdash.db, token);
+		resolved = await resolveOAuthToken(authDb, token);
 	} else {
 		// Unknown token format
 		return "invalid";
@@ -709,7 +718,7 @@ async function handleBearerAuth(
 	if (!resolved) return "invalid";
 
 	// Look up the user
-	const adapter = createKyselyAdapter(emdash.db);
+	const adapter = createKyselyAdapter(authDb);
 	const user = await adapter.getUserById(resolved.userId);
 
 	if (!user || user.disabled) return "invalid";
@@ -749,7 +758,11 @@ async function handlePasskeyAuth(
 		}
 
 		// Get full user from database
-		const adapter = createKyselyAdapter(emdash.db);
+		const authDb = emdash?.adminDb ?? emdash?.db;
+		if (!authDb) {
+			return next();
+		}
+		const adapter = createKyselyAdapter(authDb);
 		const user = await adapter.getUserById(sessionUser.id);
 
 		if (!user) {

@@ -14,11 +14,7 @@ import { buildTime as virtualBuildTime } from "virtual:emdash/build";
 // @ts-ignore - virtual module
 import virtualConfig from "virtual:emdash/config";
 // @ts-ignore - virtual module
-import {
-	createCoalescingDialect as virtualCreateCoalescingDialect,
-	createDialect as virtualCreateDialect,
-	createRequestScopedDb as virtualCreateRequestScopedDb,
-} from "virtual:emdash/dialect";
+import * as virtualDialectModule from "virtual:emdash/dialect";
 import type { RequestScopedDbOpts } from "virtual:emdash/dialect";
 // @ts-ignore - virtual module
 import { mediaProviders as virtualMediaProviders } from "virtual:emdash/media-providers";
@@ -31,7 +27,7 @@ import { sandboxedPlugins as virtualSandboxedPlugins } from "virtual:emdash/sand
 // @ts-ignore - virtual module
 import { createScheduler as virtualCreateScheduler } from "virtual:emdash/scheduler";
 // @ts-ignore - virtual module
-import { createStorage as virtualCreateStorage } from "virtual:emdash/storage";
+import * as virtualStorageModule from "virtual:emdash/storage";
 
 import { after } from "../after.js";
 import { apiError } from "../api/error.js";
@@ -59,6 +55,7 @@ import {
 } from "../emdash-runtime.js";
 import { setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
+import { matchInternalMediaRef } from "../media/image-endpoint.js";
 import { createPublicMediaUrlResolver } from "../media/url.js";
 import { getLastContentWriteAt } from "../object-cache/index.js";
 import type { PluginContentCacheInvalidator } from "../plugins/routes.js";
@@ -91,6 +88,7 @@ import {
 } from "./public-plugin-api-routes.js";
 import { getRuntimeHolder } from "./runtime-holder.js";
 import { resolveSessionUser } from "./session-user.js";
+import { type ResolvedActiveSite, resolveSiteForRequest } from "./site-routing.js";
 import type { EmDashHandlers } from "./types.js";
 
 // Public type for withEmDashRuntime() consumers (queue/scheduled handlers).
@@ -134,17 +132,31 @@ let lastRuntimeInitErrorLogAt = 0;
 const SETUP_VERIFIED_KEY = Symbol.for("emdash:setup-verified");
 const setupFlagStore = globalThis as Record<symbol, unknown>;
 
-function isSetupVerified(): boolean {
-	return setupFlagStore[SETUP_VERIFIED_KEY] === true;
+function getSetupVerifiedSet(): Set<string> {
+	const existing = setupFlagStore[SETUP_VERIFIED_KEY];
+	if (existing instanceof Set) {
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- private globalThis Set<string>
+		return existing as Set<string>;
+	}
+	const set = new Set<string>();
+	setupFlagStore[SETUP_VERIFIED_KEY] = set;
+	return set;
 }
 
-function markSetupVerified(): void {
-	setupFlagStore[SETUP_VERIFIED_KEY] = true;
+function isSetupVerified(key = "default"): boolean {
+	return getSetupVerifiedSet().has(key);
+}
+
+function markSetupVerified(key = "default"): void {
+	getSetupVerifiedSet().add(key);
 }
 
 /** Nested request contexts copy this one, so call it before creating them. */
-function providePublicMediaUrl(storage: Storage | null): (storageKey: string) => string {
-	const resolve = createPublicMediaUrlResolver(storage);
+function providePublicMediaUrl(
+	storage: Storage | null,
+	siteId?: string,
+): (storageKey: string) => string {
+	const resolve = createPublicMediaUrlResolver(storage, siteId);
 	const ctx = getRequestContext();
 	if (ctx) ctx.publicMediaUrl = resolve;
 	return resolve;
@@ -205,16 +217,20 @@ function buildDependencies(
 	   RuntimeDependencies's expected shape. The contract is enforced by
 	   the integration that populates these virtual modules. */
 	const sandboxModule = virtualSandboxRunnerModule as Record<string, unknown>;
+	const dialectModule = virtualDialectModule as Record<string, unknown>;
+	const storageModule = virtualStorageModule as Record<string, unknown>;
 	return {
 		config,
 		migrationMode,
 		plugins: getPlugins(),
-		createDialect: virtualCreateDialect as (config: Record<string, unknown>) => unknown,
+		createDialect: dialectModule.createDialect as (config: Record<string, unknown>) => unknown,
 		// Optional: only batching backends (D1, DO) export this; undefined otherwise.
-		createCoalescingDialect: virtualCreateCoalescingDialect as
+		createCoalescingDialect: dialectModule.createCoalescingDialect as
 			| ((config: Record<string, unknown>) => unknown)
 			| undefined,
-		createStorage: virtualCreateStorage as ((config: Record<string, unknown>) => Storage) | null,
+		createStorage: (storageModule.createStorage ?? null) as
+			| ((config: Record<string, unknown>) => Storage)
+			| null,
 		createScheduler: virtualCreateScheduler as CreateSchedulerFn | null,
 		sandboxEnabled: sandboxModule.sandboxEnabled as boolean,
 		sandboxBypassed: (sandboxModule.sandboxBypassed as boolean) ?? false,
@@ -619,8 +635,40 @@ function isImageEndpointRequest(context: APIContext): boolean {
 }
 
 /** The runtime's storage adapter, or null when none is configured or it cannot be created. */
-function tryGetStorage(config: EmDashConfig, migrationMode: RuntimeMigrationMode): Storage | null {
+function tryGetStorage(
+	config: EmDashConfig,
+	migrationMode: RuntimeMigrationMode,
+	site?: ResolvedActiveSite,
+): Storage | null {
 	try {
+		if (site) {
+			const storageConfig = site.config.storage;
+			if (!storageConfig) return null;
+			const baseDeps = buildDependencies(config, migrationMode);
+			const storagesByEp: unknown = Object.hasOwn(virtualStorageModule, "storagesByEntrypoint")
+				? Reflect.get(virtualStorageModule, "storagesByEntrypoint")
+				: undefined;
+			const mappedStorage: unknown =
+				typeof storagesByEp === "object" && storagesByEp !== null
+					? Reflect.get(storagesByEp, storageConfig.entrypoint)
+					: undefined;
+			const createSiteStorage =
+				typeof mappedStorage === "function"
+					? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual:emdash/storage exports createStorage factory functions
+						(mappedStorage as (cfg: Record<string, unknown>) => Storage)
+					: storageConfig.entrypoint === config.storage?.entrypoint
+						? baseDeps.createStorage
+						: null;
+			if (!createSiteStorage) return null;
+			return EmDashRuntime.getStorage(
+				{
+					...baseDeps,
+					config: { ...baseDeps.config, storage: storageConfig },
+					createStorage: createSiteStorage,
+				},
+				{ cacheKey: `site:${site.id}` },
+			);
+		}
 		return EmDashRuntime.getStorage(buildDependencies(config, migrationMode));
 	} catch {
 		return null;
@@ -648,15 +696,21 @@ async function runImageRequest(
 	signedIn: boolean,
 	metrics: RequestMetrics,
 	next: () => Promise<Response>,
+	site?: ResolvedActiveSite,
 ): Promise<Response> {
-	const scoped = createRequestScopedDb({
-		config: config.database?.config,
-		isAuthenticated: signedIn,
-		isWrite: false,
-		canUseCachedBinding: false,
-		cookies: context.cookies,
-		url: context.url,
-	});
+	const dbConfig = site?.config.database ?? config.database;
+	const scoped = createRequestScopedDb(
+		{
+			config: dbConfig?.config,
+			siteId: site?.id,
+			isAuthenticated: signedIn,
+			isWrite: false,
+			canUseCachedBinding: false,
+			cookies: context.cookies,
+			url: context.url,
+		},
+		dbConfig?.entrypoint,
+	);
 	if (!scoped) {
 		if (signedIn) {
 			try {
@@ -672,8 +726,14 @@ async function runImageRequest(
 	const { deferredTasks, lifecycle } = coordinateScopedDbLifecycle({ ...scoped, commit: () => {} });
 	const parent = getRequestContext();
 	const ctx = parent
-		? { ...parent, db: scoped.db, deferredTasks }
-		: { editMode: false, db: scoped.db, metrics, deferredTasks };
+		? { ...parent, db: scoped.db, storage: imageLocals.storage, deferredTasks }
+		: {
+				editMode: false,
+				db: scoped.db,
+				storage: imageLocals.storage,
+				metrics,
+				deferredTasks,
+			};
 	return runWithContext(ctx, () =>
 		finishScoped(lifecycle, async () => finalizeResponse(await next())),
 	);
@@ -688,12 +748,31 @@ async function runImageRequest(
  */
 function createRequestScopedDb(
 	opts: RequestScopedDbOpts,
+	entrypoint?: string,
 ): { db: Kysely<Database>; commit: () => void; close?: () => void } | null {
-	if (typeof virtualCreateRequestScopedDb !== "function") return null;
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- adapter returns Kysely<unknown>; cast to Database since core owns that type
-	const fn = virtualCreateRequestScopedDb as (
+	type ScopedDbFn = (
 		o: RequestScopedDbOpts,
 	) => { db: Kysely<Database>; commit: () => void; close?: () => void } | null;
+	const dialectsByEp: unknown = Object.hasOwn(virtualDialectModule, "dialectsByEntrypoint")
+		? Reflect.get(virtualDialectModule, "dialectsByEntrypoint")
+		: undefined;
+	const dialectBundle: unknown =
+		entrypoint && typeof dialectsByEp === "object" && dialectsByEp !== null
+			? Reflect.get(dialectsByEp, entrypoint)
+			: undefined;
+	const mappedFn: unknown =
+		typeof dialectBundle === "object" && dialectBundle !== null
+			? Reflect.get(dialectBundle, "createRequestScopedDb")
+			: undefined;
+	const fnCandidate: unknown =
+		typeof mappedFn === "function"
+			? mappedFn
+			: Object.hasOwn(virtualDialectModule, "createRequestScopedDb")
+				? Reflect.get(virtualDialectModule, "createRequestScopedDb")
+				: undefined;
+	if (typeof fnCandidate !== "function") return null;
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- adapter returns Kysely<unknown>; cast to Database since core owns that type
+	const fn = fnCandidate as ScopedDbFn;
 	const scoped = fn(opts);
 	if (scoped) markRequestScopedDb(scoped.db);
 	return scoped;
@@ -776,9 +855,47 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	const metrics = createRequestMetrics(performance.now());
 
+	const config = getConfig();
+	const isImageRequest = !context.isPrerendered && isImageEndpointRequest(context);
+	const imageHrefSiteId = isImageRequest
+		? matchInternalMediaRef(url.searchParams.get("href"))?.siteId
+		: undefined;
+	const siteResolution = resolveSiteForRequest(
+		url.pathname,
+		request.headers.get("X-EmDash-Site"),
+		config,
+		imageHrefSiteId,
+	);
+	if (!siteResolution.ok) {
+		if (
+			url.pathname.startsWith("/_emdash/api") ||
+			url.pathname.startsWith("/_emdash/.well-known")
+		) {
+			return finalizeResponse(
+				apiError(siteResolution.code, siteResolution.message, siteResolution.status),
+			);
+		}
+		return finalizeResponse(
+			new Response(siteResolution.message, {
+				status: siteResolution.status,
+				headers: { "Content-Type": "text/plain", "Cache-Control": "private, no-store" },
+			}),
+		);
+	}
+	const activeSite = siteResolution.site;
+	const rewrittenApiTarget = siteResolution.rewrittenApiPathname
+		? siteResolution.rewrittenApiPathname + url.search
+		: undefined;
+	const dispatch = rewrittenApiTarget ? () => next(rewrittenApiTarget) : next;
+
 	const run = async (): Promise<Response> => {
-		const config = getConfig();
 		const migrationMode = config ? resolveConfiguredMigrationMode(config) : "auto";
+		const setupKey = activeSite
+			? `site:${activeSite.id}`
+			: config?.sites?.length
+				? "admin"
+				: "default";
+		const activeDbConfig = activeSite?.config.database ?? config?.database;
 		// Process /_emdash routes and public routes with an active session
 		// (logged-in editors need the runtime for toolbar/visual editing on public pages)
 		const isEmDashRoute = url.pathname.startsWith("/_emdash");
@@ -814,14 +931,22 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// The image endpoint EmDash installed reads media bytes from storage and
 		// nothing else, so it needs neither the setup probe nor runtime init.
 		const imageStorage =
-			config && !playgroundDb && isImageEndpointRequest(context)
-				? tryGetStorage(config, migrationMode)
+			config && !playgroundDb && isImageRequest && (!config.sites?.length || activeSite)
+				? tryGetStorage(config, migrationMode, activeSite)
 				: null;
 		if (imageStorage) {
 			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; the image endpoint reads only storage, the auth middleware db
 			const imageLocals = { storage: imageStorage } as EmDashHandlers;
 			locals.emdash = imageLocals;
-			return runImageRequest(config, context, imageLocals, !!sessionUser, metrics, next);
+			return runImageRequest(
+				config,
+				context,
+				imageLocals,
+				!!sessionUser,
+				metrics,
+				dispatch,
+				activeSite,
+			);
 		}
 
 		// Credentialed API requests (API tokens `ec_pat_*`, OAuth tokens
@@ -873,13 +998,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 				let unmigrated = false;
 				let probeFailed = false;
-				if (migrationMode === "auto" && !isSetupVerified() && !context.isPrerendered) {
+				if (migrationMode === "auto" && !isSetupVerified(setupKey) && !context.isPrerendered) {
 					const t0 = performance.now();
 					try {
 						const { getDb } = await import("../loader.js");
 						const db = await getDb();
 						await db.selectFrom("_emdash_migrations").selectAll().limit(1).execute();
-						markSetupVerified();
+						markSetupVerified(setupKey);
 					} catch (error) {
 						if (isMissingTableError(error)) {
 							unmigrated = true;
@@ -907,9 +1032,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				if (runtimeInit && !probeFailed) {
 					try {
 						const runtime = await runtimeInit;
-						markSetupVerified();
+						markSetupVerified(setupKey);
 						const handlePublicPluginApiRoute = createPublicPluginApiRouteHandler(runtime);
-						const getPublicMediaUrl = providePublicMediaUrl(runtime.storage);
+						const activeStorage = activeSite
+							? tryGetStorage(config!, migrationMode, activeSite)
+							: config?.sites?.length
+								? null
+								: runtime.storage;
+						const getPublicMediaUrl = providePublicMediaUrl(activeStorage, activeSite?.id);
 						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; getPageRuntime() only checks for the page-contribution methods
 						locals.emdash = {
 							handlePublicPluginApiRoute,
@@ -918,7 +1048,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
 							getPublicMediaUrl,
-							storage: runtime.storage,
+							storage: activeStorage,
 						} as EmDashHandlers;
 					} catch (error) {
 						if (isMigrationRequiredError(error)) {
@@ -958,22 +1088,26 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// scoped db. For D1 with read replication this routes anonymous reads
 				// to the nearest replica; for other adapters it's a no-op.
 				const lastContentWriteAt =
-					canUseCachedBinding && config?.database?.needsLastContentWriteAt
+					canUseCachedBinding && activeDbConfig?.needsLastContentWriteAt
 						? await getLastContentWriteAt()
 						: undefined;
-				const anonScoped = createRequestScopedDb({
-					config: config?.database?.config,
-					isAuthenticated,
-					endedAuthenticated,
-					isWrite,
-					canUseCachedBinding,
-					cookies,
-					url,
-					lastContentWriteAt,
-				});
+				const anonScoped = createRequestScopedDb(
+					{
+						config: activeDbConfig?.config,
+						siteId: activeSite?.id,
+						isAuthenticated,
+						endedAuthenticated,
+						isWrite,
+						canUseCachedBinding,
+						cookies,
+						url,
+						lastContentWriteAt,
+					},
+					activeDbConfig?.entrypoint,
+				);
 				const runAnon = async () => {
 					const t0 = performance.now();
-					const response = await next();
+					const response = await dispatch();
 					timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
 					timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
 					pushMetricsTimings(timings, metrics);
@@ -1028,7 +1162,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 		if (!config) {
 			console.error("EmDash: No configuration found");
-			return finalizeResponse(await next());
+			return finalizeResponse(await dispatch());
 		}
 
 		// In playground mode, wrap the entire runtime init + request handling in
@@ -1053,7 +1187,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				for (const sub of initSubTimings) timings.push(sub);
 
 				// Runtime initialization has satisfied the effective migration policy.
-				markSetupVerified();
+				markSetupVerified(setupKey);
+
+				const activeStorage = activeSite
+					? tryGetStorage(config, migrationMode, activeSite)
+					: config.sites?.length
+						? null
+						: runtime.storage;
 
 				// The manifest is no longer pre-loaded here. It's admin-only
 				// content that public/anonymous requests never read, and
@@ -1143,7 +1283,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					ensureSearchHealthy: runtime.ensureSearchHealthy.bind(runtime),
 
 					// Direct access (for advanced use cases)
-					storage: runtime.storage,
+					storage: activeStorage,
 					// Lazy getter, not an eager snapshot: `locals.emdash` is built
 					// before the per-request scoped db is installed in ALS, so reading
 					// `runtime.db` here would capture the per-isolate singleton. Routes
@@ -1155,7 +1295,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					get db() {
 						return runtime.db;
 					},
-					getPublicMediaUrl: providePublicMediaUrl(runtime.storage),
+					get adminDb() {
+						return runtime.adminDb;
+					},
+					getPublicMediaUrl: providePublicMediaUrl(activeStorage, activeSite?.id),
 					hooks: runtime.hooks,
 					email: runtime.email,
 					configuredPlugins: runtime.configuredPlugins,
@@ -1208,23 +1351,27 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// then call commit() after next() so the adapter can persist any
 			// per-request state (e.g. a D1 bookmark cookie for read-your-writes).
 			const lastContentWriteAt =
-				canUseCachedBinding && config?.database?.needsLastContentWriteAt
+				canUseCachedBinding && activeDbConfig?.needsLastContentWriteAt
 					? await getLastContentWriteAt()
 					: undefined;
-			const scoped = createRequestScopedDb({
-				config: config?.database?.config,
-				isAuthenticated,
-				endedAuthenticated,
-				isWrite,
-				canUseCachedBinding,
-				cookies: context.cookies,
-				url,
-				lastContentWriteAt,
-			});
+			const scoped = createRequestScopedDb(
+				{
+					config: activeDbConfig?.config,
+					siteId: activeSite?.id,
+					isAuthenticated,
+					endedAuthenticated,
+					isWrite,
+					canUseCachedBinding,
+					cookies: context.cookies,
+					url,
+					lastContentWriteAt,
+				},
+				activeDbConfig?.entrypoint,
+			);
 
 			const renderAndFinalize = async () => {
 				const t0 = performance.now();
-				const response = await next();
+				const response = await dispatch();
 				timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
 				timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
 				pushMetricsTimings(timings, metrics);
@@ -1238,8 +1385,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				const { deferredTasks, lifecycle } = coordinateScopedDbLifecycle(scoped);
 				const parent = getRequestContext();
 				const ctx = parent
-					? { ...parent, db: scoped.db, deferredTasks }
-					: { editMode: false, db: scoped.db, metrics, deferredTasks };
+					? {
+							...parent,
+							db: scoped.db,
+							storage: locals.emdash?.storage ?? parent.storage,
+							deferredTasks,
+						}
+					: {
+							editMode: false,
+							db: scoped.db,
+							storage: locals.emdash?.storage,
+							metrics,
+							deferredTasks,
+						};
 				return runWithContext(ctx, () =>
 					// commit() persists per-request state (e.g. the D1 bookmark cookie)
 					// before the response returns, even if render throws; close()
@@ -1268,7 +1426,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	};
 
 	try {
-		const response = await runWithContext({ editMode: false, queryRecorder, metrics }, run);
+		const response = await runWithContext(
+			{
+				editMode: false,
+				queryRecorder,
+				metrics,
+				...(activeSite ? { site: activeSite } : {}),
+			},
+			run,
+		);
 		applyBuildValidator(context);
 		keepUnsharedResponsesOutOfRouteCache(context, response);
 		return response;

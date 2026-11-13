@@ -14,6 +14,13 @@ import { INTERNAL_MEDIA_PREFIX } from "./normalize.js";
 // portable-text `asset.url` cannot traverse or reroute on the CDN origin.
 const SAFE_STORAGE_KEY = /^[A-Za-z0-9._-]+$/;
 const QUERY_OR_FRAGMENT = /[?#]/;
+const SITE_INTERNAL_MEDIA_RE = /^\/_emdash\/api\/site\/([^/]+)\/media\/file\/(.*)$/;
+
+function mediaPrefixForSite(siteId?: string): string {
+	return siteId
+		? `/_emdash/api/site/${encodeURIComponent(siteId)}/media/file/`
+		: INTERNAL_MEDIA_PREFIX;
+}
 
 /**
  * Build the internal file route URL for a storage key, encoding each path
@@ -22,12 +29,13 @@ const QUERY_OR_FRAGMENT = /[?#]/;
  * segments and move the request off the route. Mirrors the admin's
  * `localMediaFileUrl`.
  */
-export function localMediaFileUrl(key: string): string {
+export function localMediaFileUrl(key: string, siteId?: string): string {
+	const prefix = mediaPrefixForSite(siteId);
 	const segments = key.split("/");
 	if (segments.some((segment) => segment === "" || segment === "." || segment === "..")) {
-		return `${INTERNAL_MEDIA_PREFIX}${encodeURIComponent(key)}`;
+		return `${prefix}${encodeURIComponent(key)}`;
 	}
-	return `${INTERNAL_MEDIA_PREFIX}${segments.map(encodeURIComponent).join("/")}`;
+	return `${prefix}${segments.map(encodeURIComponent).join("/")}`;
 }
 
 /**
@@ -35,8 +43,16 @@ export function localMediaFileUrl(key: string): string {
  * inverse of {@link localMediaFileUrl}. Returns `null` for any other URL.
  */
 export function storageKeyFromLocalMediaFileUrl(url: string): string | null {
-	if (!url.startsWith(INTERNAL_MEDIA_PREFIX)) return null;
-	const path = url.slice(INTERNAL_MEDIA_PREFIX.length).split(QUERY_OR_FRAGMENT, 1)[0] ?? "";
+	let path: string | null = null;
+	if (url.startsWith(INTERNAL_MEDIA_PREFIX)) {
+		path = url.slice(INTERNAL_MEDIA_PREFIX.length).split(QUERY_OR_FRAGMENT, 1)[0] ?? "";
+	} else {
+		const match = SITE_INTERNAL_MEDIA_RE.exec(url);
+		if (match?.[2] !== undefined) {
+			path = match[2].split(QUERY_OR_FRAGMENT, 1)[0] ?? "";
+		}
+	}
+	if (path === null) return null;
 	try {
 		return decodeURIComponent(path) || null;
 	} catch {
@@ -52,10 +68,17 @@ export function storageKeyFromLocalMediaFileUrl(url: string): string | null {
 export function resolvePublicMediaUrl(
 	storage: Storage | null | undefined,
 	storageKey: string,
+	siteId?: string,
 ): string {
 	if (!storageKey) return "";
-	if (storage) return storage.getPublicUrl(storageKey);
-	return `/_emdash/api/media/file/${storageKey}`;
+	if (storage) {
+		const url = storage.getPublicUrl(storageKey);
+		if (siteId && url.startsWith(INTERNAL_MEDIA_PREFIX)) {
+			return `${mediaPrefixForSite(siteId)}${url.slice(INTERNAL_MEDIA_PREFIX.length)}`;
+		}
+		return url;
+	}
+	return `${mediaPrefixForSite(siteId)}${storageKey}`;
 }
 
 /**
@@ -66,8 +89,9 @@ export function resolvePublicMediaUrl(
  */
 export function createPublicMediaUrlResolver(
 	storage: Storage | null | undefined,
+	siteId?: string,
 ): (key: string) => string {
-	return (key) => resolvePublicMediaUrl(storage, key);
+	return (key) => resolvePublicMediaUrl(storage, key, siteId);
 }
 
 /** Input shape for {@link buildRenderMediaUrl}. */
@@ -91,18 +115,25 @@ export interface RenderMediaRef {
 export function buildRenderMediaUrl(
 	resolve: ((key: string) => string) | undefined,
 	ref: RenderMediaRef,
+	siteId?: string,
 ): string {
 	const { storageKey, url, id } = ref;
 	if (storageKey) {
-		return resolve ? resolve(storageKey) : `${INTERNAL_MEDIA_PREFIX}${storageKey}`;
+		return resolve ? resolve(storageKey) : `${mediaPrefixForSite(siteId)}${storageKey}`;
 	}
 	if (url) {
-		if (resolve && url.startsWith(INTERNAL_MEDIA_PREFIX)) {
-			const key = url.slice(INTERNAL_MEDIA_PREFIX.length);
-			if (SAFE_STORAGE_KEY.test(key)) return resolve(key);
+		if (resolve) {
+			if (url.startsWith(INTERNAL_MEDIA_PREFIX)) {
+				const key = url.slice(INTERNAL_MEDIA_PREFIX.length);
+				if (SAFE_STORAGE_KEY.test(key)) return resolve(key);
+			}
+			const siteMatch = SITE_INTERNAL_MEDIA_RE.exec(url);
+			if (siteMatch?.[2] && SAFE_STORAGE_KEY.test(siteMatch[2])) {
+				return resolve(siteMatch[2]);
+			}
 		}
 		return url;
 	}
-	if (id) return `${INTERNAL_MEDIA_PREFIX}${id}`;
+	if (id) return `${mediaPrefixForSite(siteId)}${id}`;
 	return "";
 }

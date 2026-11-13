@@ -83,6 +83,32 @@ describe("D1 request scoping bookmark persistence", () => {
 		scoped!.commit();
 		expect(cookies.set).not.toHaveBeenCalled();
 	});
+
+	it("scopes bookmark cookie names by siteId when provided", () => {
+		const cookies = {
+			get: vi.fn((name: string) =>
+				name === "__em_d1_bookmark_orange" ? { value: "orange-bm" } : undefined,
+			),
+			set: vi.fn(),
+		};
+		const scoped = createRequestScopedDb({
+			config,
+			siteId: "orange",
+			isAuthenticated: true,
+			isWrite: false,
+			cookies,
+			url: new URL("https://example.com/_emdash/api/site/orange/content/pages"),
+		});
+
+		expect(scoped).not.toBeNull();
+		expect(mocks.binding.withSession).toHaveBeenCalledWith("orange-bm");
+		scoped!.commit();
+		expect(cookies.set).toHaveBeenCalledWith(
+			"__em_d1_bookmark_orange",
+			"d1-bookmark-1",
+			expect.objectContaining({ httpOnly: true, secure: true }),
+		);
+	});
 });
 
 describe("D1 request scoping query concurrency", () => {

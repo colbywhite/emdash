@@ -169,6 +169,7 @@ interface CookieJar {
 
 export interface RequestScopedDbOpts {
 	config: D1Config;
+	siteId?: string;
 	isAuthenticated: boolean;
 	/**
 	 * Evaluated at commit() time: whether the request ended authenticated.
@@ -404,7 +405,8 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 		return null;
 	}
 
-	const cookieName = opts.config.bookmarkCookie ?? DEFAULT_BOOKMARK_COOKIE;
+	const baseCookieName = opts.config.bookmarkCookie ?? DEFAULT_BOOKMARK_COOKIE;
+	const cookieName = opts.siteId ? `${baseCookieName}_${opts.siteId}` : baseCookieName;
 	const configConstraint =
 		opts.config.session === "primary-first" ? "first-primary" : "first-unconstrained";
 

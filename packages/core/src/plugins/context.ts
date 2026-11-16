@@ -1392,6 +1392,8 @@ const TRAILING_SLASH_RE = /\/$/;
  * Options for creating site info
  */
 export interface SiteInfoOptions {
+	/** Site ID in multi-site deployments */
+	siteId?: string;
 	/** Site name from options table */
 	siteName?: string;
 	/** Site URL, resolved by the runtime in the same order as links in emails */
@@ -1408,6 +1410,7 @@ export interface SiteInfoOptions {
  */
 export function createSiteInfo(options: SiteInfoOptions): SiteInfo {
 	return {
+		...(options.siteId ? { id: options.siteId } : {}),
 		name: options.siteName ?? "",
 		url: (options.siteUrl ?? "").replace(TRAILING_SLASH_RE, ""), // strip trailing slash
 		locale: options.locale ?? "en",

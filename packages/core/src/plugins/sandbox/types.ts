@@ -142,6 +142,14 @@ export interface SandboxOptions {
 	};
 	/** Worker Loader name suffix. The plugin's logical ID remains unchanged. */
 	isolateKey?: string;
+	/** Active site ID in multi-site deployments. Undefined in single-site mode. */
+	siteId?: string;
+	/** Cloudflare D1 binding name for this runtime slot (defaults to `"DB"`). */
+	dbBindingName?: string;
+	/** Cloudflare R2 binding name for this runtime slot (defaults to `"MEDIA"`). */
+	mediaBindingName?: string;
+	/** Stable identifier for this EmDashRuntime / runner instance. */
+	runtimeId?: string;
 }
 
 /**

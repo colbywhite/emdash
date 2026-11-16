@@ -960,6 +960,8 @@ export interface LogAccess {
  * Site information available to all plugins
  */
 export interface SiteInfo {
+	/** Site ID in multi-site deployments. Undefined in single-site mode. */
+	id?: string;
 	/** Site name (from settings) */
 	name: string;
 	/** Site URL (from settings or request) */

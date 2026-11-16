@@ -312,7 +312,7 @@ import {
 } from "./plugins/storage-indexes.js";
 import { getRegistryConfigInput, resolveManifestRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
-import { getRequestContext } from "./request-context.js";
+import { createRequestMetrics, getRequestContext, runWithContext } from "./request-context.js";
 import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import { normalizeBlocksData, resolveBlockTypes } from "./schema/block-values.js";
 import { SchemaError, SchemaRegistry } from "./schema/registry.js";
@@ -732,6 +732,13 @@ function getDbLock(holder: DbHolder, cacheKey: string): InitLock {
 		holder.locks.set(cacheKey, lock);
 	}
 	return lock;
+}
+
+function readBindingName(config: unknown): string | undefined {
+	if (typeof config !== "object" || config === null || !("binding" in config)) {
+		return undefined;
+	}
+	return typeof config.binding === "string" && config.binding ? config.binding : undefined;
 }
 
 function getDatabaseCacheKey(deps: Pick<RuntimeDependencies, "siteId" | "dbCacheKey">): string {
@@ -2058,6 +2065,7 @@ export class EmDashRuntime {
 			const repairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
 			return {
 				siteInfo: {
+					siteId: deps.siteId,
 					siteName: deps.siteInfo?.name ?? siteTitle,
 					siteUrl: deps.siteInfo?.url ?? siteUrl,
 					locale: deps.siteInfo?.locale ?? (typeof locale === "string" ? locale : undefined),
@@ -2653,8 +2661,33 @@ export class EmDashRuntime {
 		// The callback reads from a mutable ref so that rebuildHookPipeline()
 		// can swap the pipeline without reconstructing the CronExecutor.
 		const pipelineRef = { current: pipeline };
+		const siteForCron = deps.siteId
+			? {
+					id: deps.siteId,
+					name: siteInfo?.siteName || deps.siteId,
+					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- EmDashSiteConfig shape on RuntimeDependencies
+					config: deps.config as never,
+				}
+			: undefined;
+		const runInCronContext = <T>(fn: () => Promise<T>): Promise<T> => {
+			if (!siteForCron || getRequestContext()?.site?.id === siteForCron.id) {
+				return fn();
+			}
+			return runWithContext(
+				{
+					editMode: false,
+					site: siteForCron,
+					db,
+					storage,
+					metrics: createRequestMetrics(performance.now()),
+				},
+				fn,
+			);
+		};
 		const invokeCronHook: InvokeCronHookFn = async (pluginId, event) => {
-			const result = await pipelineRef.current.invokeCronHook(pluginId, event);
+			const result = await runInCronContext(() =>
+				pipelineRef.current.invokeCronHook(pluginId, event),
+			);
 			if (!result.success && result.error) {
 				throw result.error;
 			}
@@ -2721,7 +2754,7 @@ export class EmDashRuntime {
 						if (!runtime) return;
 						const currentTime = deps.now?.() ?? new Date();
 						try {
-							await runtime.runScheduledMaintenanceTick({}, currentTime);
+							await runInCronContext(() => runtime.runScheduledMaintenanceTick({}, currentTime));
 						} catch (error) {
 							console.error("[scheduled] Maintenance tick failed:", error);
 						}
@@ -3121,10 +3154,15 @@ export class EmDashRuntime {
 
 		// Create sandbox runner if not exists
 		if (!sandboxState.sandboxRunner && deps.createSandboxRunner) {
+			const dbBinding = readBindingName(deps.config.database?.config);
+			const mediaBinding = readBindingName(deps.config.storage?.config);
 			sandboxState.sandboxRunner = deps.createSandboxRunner(
 				createSandboxRunnerOptions(
 					{
 						db,
+						siteId: deps.siteId,
+						dbBindingName: dbBinding,
+						mediaBindingName: mediaBinding,
 						beforeContentWrite: () => assertSiteWriteAllowed(db),
 						taxonomyWrite: createTaxonomyAccessWithWrite(db),
 						now: deps.now,
@@ -3287,10 +3325,15 @@ export class EmDashRuntime {
 		// Ensure sandbox runner exists with media storage wired up.
 		// (storage here is the media Storage adapter from the runtime.)
 		if (!sandboxState.sandboxRunner && deps.createSandboxRunner) {
+			const dbBinding = readBindingName(deps.config.database?.config);
+			const mediaBinding = readBindingName(deps.config.storage?.config);
 			sandboxState.sandboxRunner = deps.createSandboxRunner(
 				createSandboxRunnerOptions(
 					{
 						db,
+						siteId: deps.siteId,
+						dbBindingName: dbBinding,
+						mediaBindingName: mediaBinding,
 						beforeContentWrite: () => assertSiteWriteAllowed(db),
 						taxonomyWrite: createTaxonomyAccessWithWrite(db),
 						now: deps.now,

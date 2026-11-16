@@ -59,7 +59,6 @@ import type { Database, Storage } from "../index.js";
 import { matchInternalMediaRef } from "../media/image-endpoint.js";
 import { createPublicMediaUrlResolver } from "../media/url.js";
 import { getLastContentWriteAt } from "../object-cache/index.js";
-import type { PluginContentCacheInvalidator } from "../plugins/routes.js";
 import type { SandboxRunnerFactory } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { invalidateUrlPatternCache } from "../query.js";
@@ -95,7 +94,11 @@ import {
 } from "./public-plugin-api-routes.js";
 import { getRuntimeHolder, getRuntimeSlot } from "./runtime-holder.js";
 import { resolveSessionUser } from "./session-user.js";
-import { type ResolvedActiveSite, resolveSiteForRequest } from "./site-routing.js";
+import {
+	findConfiguredSite,
+	type ResolvedActiveSite,
+	resolveSiteForRequest,
+} from "./site-routing.js";
 import type { EmDashHandlers, EmDashManifest } from "./types.js";
 
 // Public type for withEmDashRuntime() consumers (queue/scheduled handlers).
@@ -573,13 +576,44 @@ function buildRootManifest(config: EmDashConfig): EmDashManifest {
  */
 export async function runScheduledTasks(
 	options: {
-		onPublished?: (refs: PublishedRef[]) => Promise<void>;
-		invalidateContentCache?: PluginContentCacheInvalidator;
+		onPublished?: (refs: PublishedRef[], siteId?: string) => Promise<void>;
+		invalidateContentCache?: (tags: string[], siteId?: string) => Promise<void>;
 	} = {},
 ): Promise<{ published: PublishedRef[] }> {
 	const config = getConfig();
 	if (!config) return { published: [] };
+	if (config.sites?.length) {
+		const allPublished: PublishedRef[] = [];
+		for (const rawSite of config.sites) {
+			const site: ResolvedActiveSite = {
+				id: rawSite.id,
+				name: rawSite.name,
+				config: resolveSiteConfig(config, rawSite),
+			};
+			try {
+				const { published } = await runOutsideRequestForSite(config, site, (runtime) =>
+					runtime.runScheduledTasks({
+						onPublished: options.onPublished
+							? (refs) => options.onPublished!(refs, site.id)
+							: undefined,
+						invalidateContentCache: options.invalidateContentCache
+							? (tags) => options.invalidateContentCache!(tags, site.id)
+							: undefined,
+					}),
+				);
+				allPublished.push(...published);
+			} catch (error) {
+				console.error(`[scheduled] runScheduledTasks failed for site "${site.id}":`, error);
+			}
+		}
+		return { published: allPublished };
+	}
 	return runOutsideRequest(config, (runtime) => runtime.runScheduledTasks(options));
+}
+
+export interface WithEmDashRuntimeOptions {
+	/** Target site ID (required when `sites` is configured in multi-site mode). */
+	siteId?: string;
 }
 
 /**
@@ -615,10 +649,12 @@ export async function runScheduledTasks(
  * auth or CSRF checks, same trust level as plugin cron. Never expose it to
  * user input without validating that input yourself.
  *
- * Throws when EmDash is not configured (no `emdash()` Astro integration).
+ * Throws when EmDash is not configured (no `emdash()` Astro integration),
+ * or when multi-site mode is enabled without a valid `siteId`.
  */
 export async function withEmDashRuntime<T>(
 	run: (runtime: EmDashRuntime) => T | Promise<T>,
+	options?: WithEmDashRuntimeOptions,
 ): Promise<T> {
 	const config = getConfig();
 	if (!config) {
@@ -626,7 +662,52 @@ export async function withEmDashRuntime<T>(
 			"EmDash is not configured — withEmDashRuntime() requires the emdash() Astro integration.",
 		);
 	}
+	if (config.sites?.length) {
+		const siteId = options?.siteId?.trim() || getRequestContext()?.site?.id;
+		if (!siteId) {
+			throw new Error("withEmDashRuntime() requires { siteId } when multi-site mode is enabled.");
+		}
+		const site = findConfiguredSite(config, siteId);
+		if (!site) {
+			throw new Error(`Unknown site "${siteId}" in withEmDashRuntime().`);
+		}
+		return runOutsideRequestForSite(config, site, async (runtime) => run(runtime));
+	}
+	if (options?.siteId) {
+		throw new Error(`Unknown site "${options.siteId}" in withEmDashRuntime().`);
+	}
 	return runOutsideRequest(config, async (runtime) => run(runtime));
+}
+
+async function runOutsideRequestForSite<T>(
+	config: EmDashConfig,
+	site: ResolvedActiveSite,
+	fn: (runtime: EmDashRuntime) => Promise<T>,
+): Promise<T> {
+	const migrationMode = resolveConfiguredMigrationMode(config);
+	const siteMigrationMode = resolveSiteMigrationMode(config, site.config, migrationMode);
+	const activeStorage = tryGetStorage(config, siteMigrationMode, site);
+	const deferredTasks = createDeferredTaskTracker(() => {});
+	const parent = getRequestContext();
+	const context = {
+		editMode: false,
+		site,
+		storage: activeStorage,
+		metrics: parent?.metrics ?? createRequestMetrics(performance.now()),
+		queryRecorder: parent?.queryRecorder,
+		deferredTasks,
+	};
+	return runWithContext(context, async () => {
+		const runtime = await (async () => {
+			try {
+				return await getSiteRuntime(config, migrationMode, site);
+			} finally {
+				deferredTasks.settle();
+				await deferredTasks.settled;
+			}
+		})();
+		return runOutsideRequestWithRuntime(config, runtime, fn, site);
+	});
 }
 
 /**
@@ -676,17 +757,23 @@ async function runOutsideRequestWithRuntime<T>(
 	config: EmDashConfig,
 	runtime: EmDashRuntime,
 	fn: (runtime: EmDashRuntime) => Promise<T>,
+	site?: ResolvedActiveSite,
 ): Promise<T> {
-	const scoped = createRequestScopedDb({
-		config: config.database?.config,
-		isAuthenticated: false,
-		// Event handlers publish, clean up, or run jobs — a write workload —
-		// so a connection-backed adapter routes them to the primary.
-		isWrite: true,
-		canUseCachedBinding: false,
-		cookies: NOOP_COOKIE_JAR,
-		url: CRON_EVENT_URL,
-	});
+	const dbConfig = site?.config.database ?? config.database;
+	const scoped = createRequestScopedDb(
+		{
+			config: dbConfig?.config,
+			siteId: site?.id,
+			isAuthenticated: false,
+			// Event handlers publish, clean up, or run jobs — a write workload —
+			// so a connection-backed adapter routes them to the primary.
+			isWrite: true,
+			canUseCachedBinding: false,
+			cookies: NOOP_COOKIE_JAR,
+			url: CRON_EVENT_URL,
+		},
+		dbConfig?.entrypoint,
+	);
 	if (!scoped) {
 		// This adapter needs no event-specific routing or connection.
 		return fn(runtime);
@@ -695,9 +782,15 @@ async function runOutsideRequestWithRuntime<T>(
 
 	const parent = getRequestContext();
 	const ctx = parent
-		? { ...parent, db: scoped.db, deferredTasks }
+		? {
+				...parent,
+				...(site ? { site, storage: runtime.storage } : {}),
+				db: scoped.db,
+				deferredTasks,
+			}
 		: {
 				editMode: false,
+				...(site ? { site, storage: runtime.storage } : {}),
 				db: scoped.db,
 				metrics: createRequestMetrics(performance.now()),
 				deferredTasks,

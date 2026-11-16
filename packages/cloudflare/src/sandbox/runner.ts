@@ -71,11 +71,16 @@ export interface PluginBridgeProps {
 	capabilities: string[];
 	allowedHosts: string[];
 	storageCollections: string[];
+	siteId?: string;
+	dbBindingName?: string;
+	mediaBindingName?: string;
+	runtimeId?: string;
 	contentCreateRuntimeId?: string;
 	contentActionsRuntimeId?: string;
 	taxonomyWriteRuntimeId?: string;
 	i18nConfig?: I18nConfig | null;
 	siteInfo?: {
+		id?: string;
 		name: string;
 		url: string;
 		locale: string;
@@ -140,10 +145,12 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	private contentCreate: SandboxContentCreateCallback | null = null;
 	private contentActions: ContentActionCallbacks | null;
 	private commentModerate: SandboxCommentModerateCallback | null;
+	private readonly runtimeId: string;
 	private readonly contentCreateRuntimeId = crypto.randomUUID();
 	private readonly contentActionsRuntimeId = crypto.randomUUID();
 	private readonly taxonomyWriteRuntimeId = crypto.randomUUID();
 	private siteInfo?: {
+		id?: string;
 		name: string;
 		url: string;
 		locale: string;
@@ -154,6 +161,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 
 	constructor(options: SandboxOptions) {
 		this.options = options;
+		this.runtimeId = options.runtimeId ?? crypto.randomUUID();
 		this.contentActions = options.contentActions ?? null;
 		this.commentModerate = options.commentModerate ?? null;
 		this.resolvedLimits = resolveLimits(options.limits);
@@ -164,14 +172,14 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 		}
 
 		// Wire email send callback if provided at construction time
-		setEmailSendCallback(options.emailSend ?? null);
+		setEmailSendCallback(this.runtimeId, options.emailSend ?? null);
 		setContentActionsCallback(this.contentActionsRuntimeId, options.contentActions ?? null);
-		setCronNowCallback(options.now ?? null);
+		setCronNowCallback(this.runtimeId, options.now ?? null);
 		if (options.mediaStorage) {
 			this.mediaStorageKey = crypto.randomUUID();
 			setMediaStorageCallback(this.mediaStorageKey, options.mediaStorage);
 		}
-		setCommentModerateCallback(options.commentModerate ?? null);
+		setCommentModerateCallback(this.runtimeId, options.commentModerate ?? null);
 		setTaxonomyWriteCallback(this.taxonomyWriteRuntimeId, options.taxonomyWrite ?? null);
 	}
 
@@ -181,12 +189,12 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	 * doesn't exist when the sandbox runner is constructed.
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void {
-		setEmailSendCallback(callback);
+		setEmailSendCallback(this.runtimeId, callback);
 	}
 
 	setCommentModerate(callback: SandboxCommentModerateCallback | null): void {
 		this.commentModerate = callback;
-		setCommentModerateCallback(callback);
+		setCommentModerateCallback(this.runtimeId, callback);
 	}
 
 	setContentCreate(callback: SandboxContentCreateCallback | null): void {
@@ -200,7 +208,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	}
 
 	setCronReschedule(callback: (() => void) | null): void {
-		setCronRescheduleCallback(callback);
+		setCronRescheduleCallback(this.runtimeId, callback);
 	}
 
 	/**
@@ -266,6 +274,10 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 			this.resolvedLimits,
 			this.siteInfo,
 			this.options.isolateKey,
+			this.options.siteId,
+			this.options.dbBindingName,
+			this.options.mediaBindingName,
+			this.runtimeId,
 			this.contentCreateRuntimeId,
 			this.contentActionsRuntimeId,
 			this.taxonomyWriteRuntimeId,
@@ -300,6 +312,10 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 			await plugin.terminate();
 		}
 		this.plugins.clear();
+		setEmailSendCallback(this.runtimeId, null);
+		setCommentModerateCallback(this.runtimeId, null);
+		setCronNowCallback(this.runtimeId, null);
+		setCronRescheduleCallback(this.runtimeId, null);
 		setContentCreateCallback(this.contentCreateRuntimeId, null);
 		setContentActionsCallback(this.contentActionsRuntimeId, null);
 		setTaxonomyWriteCallback(this.taxonomyWriteRuntimeId, null);
@@ -324,6 +340,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 	private wrapperCode: string | null = null;
 	private limits: ResolvedLimits;
 	private siteInfo?: {
+		id?: string;
 		name: string;
 		url: string;
 		locale: string;
@@ -338,12 +355,17 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		createBridge: (opts: { props: PluginBridgeProps }) => PluginBridgeBinding,
 		limits: ResolvedLimits,
 		siteInfo?: {
+			id?: string;
 			name: string;
 			url: string;
 			locale: string;
 			trailingSlash?: "always" | "never" | "ignore";
 		},
 		isolateKey?: string,
+		private readonly siteId?: string,
+		private readonly dbBindingName?: string,
+		private readonly mediaBindingName?: string,
+		private readonly runtimeId?: string,
 		private contentCreateRuntimeId?: string,
 		private contentActionsRuntimeId?: string,
 		private taxonomyWriteRuntimeId?: string,
@@ -352,7 +374,8 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		private readonly createRuntimeBridge?: (invocationId: string) => PluginRuntimeBridge,
 	) {
 		this.id = `${manifest.id}:${manifest.version}`;
-		this.workerName = isolateKey ? `${this.id}:${isolateKey}` : this.id;
+		const baseName = `${siteId ?? "default"}:${this.id}`;
+		this.workerName = isolateKey ? `${baseName}:${isolateKey}` : baseName;
 		this.manifest = manifest;
 		this.code = code;
 		this.loader = loader;
@@ -389,6 +412,10 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 				capabilities,
 				allowedHosts: this.manifest.allowedHosts || [],
 				storageCollections: Object.keys(this.manifest.storage || {}),
+				siteId: this.siteId,
+				dbBindingName: this.dbBindingName,
+				mediaBindingName: this.mediaBindingName,
+				runtimeId: this.runtimeId,
 				contentCreateRuntimeId: this.contentCreateRuntimeId,
 				contentActionsRuntimeId: this.contentActionsRuntimeId,
 				taxonomyWriteRuntimeId: this.taxonomyWriteRuntimeId,

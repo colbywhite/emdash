@@ -59,6 +59,7 @@ function getCacheProvider(): ReturnType<typeof loadCacheProvider> {
  */
 async function invalidatePublishedTags(
 	published: ReadonlyArray<{ collection: string; id: string }>,
+	_siteId?: string,
 ): Promise<void> {
 	if (published.length === 0) return;
 	const provider = await getCacheProvider();
@@ -67,7 +68,7 @@ async function invalidatePublishedTags(
 	await provider.invalidate({ tags });
 }
 
-async function invalidateContentTags(tags: string[]): Promise<void> {
+async function invalidateContentTags(tags: string[], _siteId?: string): Promise<void> {
 	if (tags.length === 0) return;
 	const provider = await getCacheProvider();
 	if (!provider) return;

@@ -103,60 +103,77 @@ function invalidCommentStatus(value: string, name: string): string | null {
 	return COMMENT_STATUSES.has(value) ? null : `${name} must be one of: approved, pending, spam`;
 }
 
-// The bridge can run in a different isolate than the one that set this callback.
-// emailSend starts EmDash locally when the callback is missing.
-let emailSendCallback: SandboxEmailSendCallback | null = null;
+const DEFAULT_RUNTIME_ID = "default";
+const EMAIL_SEND_CALLBACKS_KEY = Symbol.for("emdash:sandbox-email-send-callbacks");
+const COMMENT_MODERATE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-comment-moderate-callbacks");
+const CRON_NOW_CALLBACKS_KEY = Symbol.for("emdash:sandbox-cron-now-callbacks");
+const CRON_RESCHEDULE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-cron-reschedule-callbacks");
 const CONTENT_CREATE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-create-callbacks");
 const TAXONOMY_WRITE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-taxonomy-write-callbacks");
 const CONTENT_ACTION_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-action-callbacks");
-let cronRescheduleCallback: (() => void) | null = null;
-let cronNowCallback: (() => Date) | null = null;
-let commentModerateCallback: SandboxCommentModerateCallback | null = null;
 const httpFetchCallbacks = new Map<string, typeof fetch>();
 const mediaStorageCallbacks = new Map<string, Pick<Storage, "download">>();
 
-function contentCreateCallbacks(): Map<string, SandboxContentCreateCallback> {
+function getGlobalCallbackMap<T>(symbol: symbol): Map<string, T> {
 	const store = globalThis as Record<symbol, unknown>;
-	const existing = store[CONTENT_CREATE_CALLBACKS_KEY];
+	const existing = store[symbol];
 	if (existing instanceof Map) {
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- this private Symbol stores only callback maps created below
-		return existing as Map<string, SandboxContentCreateCallback>;
+		return existing as Map<string, T>;
 	}
-	const callbacks = new Map<string, SandboxContentCreateCallback>();
-	store[CONTENT_CREATE_CALLBACKS_KEY] = callbacks;
+	const callbacks = new Map<string, T>();
+	store[symbol] = callbacks;
 	return callbacks;
+}
+
+function emailSendCallbacks(): Map<string, SandboxEmailSendCallback> {
+	return getGlobalCallbackMap<SandboxEmailSendCallback>(EMAIL_SEND_CALLBACKS_KEY);
+}
+
+function commentModerateCallbacks(): Map<string, SandboxCommentModerateCallback> {
+	return getGlobalCallbackMap<SandboxCommentModerateCallback>(COMMENT_MODERATE_CALLBACKS_KEY);
+}
+
+function cronNowCallbacks(): Map<string, () => Date> {
+	return getGlobalCallbackMap<() => Date>(CRON_NOW_CALLBACKS_KEY);
+}
+
+function cronRescheduleCallbacks(): Map<string, () => void> {
+	return getGlobalCallbackMap<() => void>(CRON_RESCHEDULE_CALLBACKS_KEY);
+}
+
+function contentCreateCallbacks(): Map<string, SandboxContentCreateCallback> {
+	return getGlobalCallbackMap<SandboxContentCreateCallback>(CONTENT_CREATE_CALLBACKS_KEY);
 }
 
 function taxonomyWriteCallbacks(): Map<string, TaxonomyAccessWithWrite> {
-	const store = globalThis as Record<symbol, unknown>;
-	const existing = store[TAXONOMY_WRITE_CALLBACKS_KEY];
-	if (existing instanceof Map) {
-		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- this private Symbol stores only callback maps created below
-		return existing as Map<string, TaxonomyAccessWithWrite>;
-	}
-	const callbacks = new Map<string, TaxonomyAccessWithWrite>();
-	store[TAXONOMY_WRITE_CALLBACKS_KEY] = callbacks;
-	return callbacks;
+	return getGlobalCallbackMap<TaxonomyAccessWithWrite>(TAXONOMY_WRITE_CALLBACKS_KEY);
 }
 
 function contentActionCallbacks(): Map<string, ContentActionCallbacks> {
-	const store = globalThis as Record<symbol, unknown>;
-	const existing = store[CONTENT_ACTION_CALLBACKS_KEY];
-	if (existing instanceof Map) {
-		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- this private Symbol stores only callback maps created below
-		return existing as Map<string, ContentActionCallbacks>;
-	}
-	const callbacks = new Map<string, ContentActionCallbacks>();
-	store[CONTENT_ACTION_CALLBACKS_KEY] = callbacks;
-	return callbacks;
+	return getGlobalCallbackMap<ContentActionCallbacks>(CONTENT_ACTION_CALLBACKS_KEY);
 }
 
 /**
- * Set the email send callback for all bridge instances.
+ * Set the email send callback for a runtime slot (or the default slot).
  * Called by the runner when the EmailPipeline is available.
  */
-export function setEmailSendCallback(callback: SandboxEmailSendCallback | null): void {
-	emailSendCallback = callback;
+export function setEmailSendCallback(callback: SandboxEmailSendCallback | null): void;
+export function setEmailSendCallback(
+	runtimeId: string,
+	callback: SandboxEmailSendCallback | null,
+): void;
+export function setEmailSendCallback(
+	runtimeIdOrCallback: string | SandboxEmailSendCallback | null,
+	maybeCallback?: SandboxEmailSendCallback | null,
+): void {
+	if (typeof runtimeIdOrCallback === "string") {
+		if (maybeCallback) emailSendCallbacks().set(runtimeIdOrCallback, maybeCallback);
+		else emailSendCallbacks().delete(runtimeIdOrCallback);
+		return;
+	}
+	emailSendCallbacks().clear();
+	if (runtimeIdOrCallback) emailSendCallbacks().set(DEFAULT_RUNTIME_ID, runtimeIdOrCallback);
 }
 
 export function setContentCreateCallback(
@@ -196,16 +213,55 @@ export function flushContentActionCallbacks(
 	);
 }
 
-export function setCronRescheduleCallback(callback: (() => void) | null): void {
-	cronRescheduleCallback = callback;
+export function setCronRescheduleCallback(callback: (() => void) | null): void;
+export function setCronRescheduleCallback(runtimeId: string, callback: (() => void) | null): void;
+export function setCronRescheduleCallback(
+	runtimeIdOrCallback: string | (() => void) | null,
+	maybeCallback?: (() => void) | null,
+): void {
+	if (typeof runtimeIdOrCallback === "string") {
+		if (maybeCallback) cronRescheduleCallbacks().set(runtimeIdOrCallback, maybeCallback);
+		else cronRescheduleCallbacks().delete(runtimeIdOrCallback);
+		return;
+	}
+	if (runtimeIdOrCallback) cronRescheduleCallbacks().set(DEFAULT_RUNTIME_ID, runtimeIdOrCallback);
+	else cronRescheduleCallbacks().clear();
 }
 
-export function setCronNowCallback(callback: (() => Date) | null): void {
-	cronNowCallback = callback;
+export function setCronNowCallback(callback: (() => Date) | null): void;
+export function setCronNowCallback(runtimeId: string, callback: (() => Date) | null): void;
+export function setCronNowCallback(
+	runtimeIdOrCallback: string | (() => Date) | null,
+	maybeCallback?: (() => Date) | null,
+): void {
+	if (typeof runtimeIdOrCallback === "string") {
+		if (maybeCallback) cronNowCallbacks().set(runtimeIdOrCallback, maybeCallback);
+		else cronNowCallbacks().delete(runtimeIdOrCallback);
+		return;
+	}
+	if (runtimeIdOrCallback) cronNowCallbacks().set(DEFAULT_RUNTIME_ID, runtimeIdOrCallback);
+	else cronNowCallbacks().clear();
 }
 
-export function setCommentModerateCallback(callback: SandboxCommentModerateCallback | null): void {
-	commentModerateCallback = callback;
+export function setCommentModerateCallback(callback: SandboxCommentModerateCallback | null): void;
+export function setCommentModerateCallback(
+	runtimeId: string,
+	callback: SandboxCommentModerateCallback | null,
+): void;
+export function setCommentModerateCallback(
+	runtimeIdOrCallback: string | SandboxCommentModerateCallback | null,
+	maybeCallback?: SandboxCommentModerateCallback | null,
+): void {
+	if (typeof runtimeIdOrCallback === "string") {
+		if (maybeCallback) commentModerateCallbacks().set(runtimeIdOrCallback, maybeCallback);
+		else commentModerateCallbacks().delete(runtimeIdOrCallback);
+		return;
+	}
+	if (runtimeIdOrCallback) {
+		commentModerateCallbacks().set(DEFAULT_RUNTIME_ID, runtimeIdOrCallback);
+	} else {
+		commentModerateCallbacks().clear();
+	}
 }
 
 export function setMediaStorageCallback(
@@ -369,9 +425,10 @@ async function redirectBridgeResult<T>(action: () => Promise<T>): Promise<Redire
  * Environment bindings required by PluginBridge
  */
 export interface PluginBridgeEnv {
-	DB: D1Database;
+	DB?: D1Database;
 	MEDIA?: R2Bucket;
 	EMDASH_ENCRYPTION_KEY?: string;
+	[binding: string]: unknown;
 }
 
 /**
@@ -383,11 +440,16 @@ export interface PluginBridgeProps {
 	capabilities: string[];
 	allowedHosts: string[];
 	storageCollections: string[];
+	siteId?: string;
+	dbBindingName?: string;
+	mediaBindingName?: string;
+	runtimeId?: string;
 	contentCreateRuntimeId?: string;
 	contentActionsRuntimeId?: string;
 	taxonomyWriteRuntimeId?: string;
 	i18nConfig?: I18nConfig | null;
 	siteInfo?: {
+		id?: string;
 		name: string;
 		url: string;
 		locale: string;
@@ -417,9 +479,29 @@ export interface PluginBridgeProps {
 export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridgeProps> {
 	private readonly secretRedactor: PluginSecretRedactor = createPluginSecretRedactor();
 
+	private getD1Database(): D1Database {
+		const bindingName = this.ctx.props.dbBindingName ?? "DB";
+		const binding = (this.env as Record<string, unknown>)[bindingName];
+		if (!binding || typeof binding !== "object") {
+			throw new Error(`D1 binding "${bindingName}" is not configured for PluginBridge`);
+		}
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Worker env binding lookup by configured name
+		return binding as D1Database;
+	}
+
+	private getMediaBucket(): R2Bucket | undefined {
+		const bindingName = this.ctx.props.mediaBindingName ?? "MEDIA";
+		const binding = (this.env as Record<string, unknown>)[bindingName];
+		if (!binding || typeof binding !== "object") {
+			return undefined;
+		}
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Worker env binding lookup by configured name
+		return binding as R2Bucket;
+	}
+
 	private async db() {
 		const { D1Dialect, Kysely } = await loadBridgeRuntime();
-		return new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) });
 	}
 
 	private requireCapability(capability: string): void {
@@ -451,7 +533,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	private async getOptionsRepo(): Promise<OptionsRepository> {
 		const { D1Dialect, Kysely, OptionsRepository } = await loadBridgeRuntime();
 		return new OptionsRepository(
-			new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) }),
+			new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) }),
 		);
 	}
 
@@ -485,9 +567,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	}
 
 	private async deleteLegacyKV(key: string): Promise<boolean> {
-		const result = await this.env.DB.prepare(
-			"DELETE FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id = ?",
-		)
+		const result = await this.getD1Database()
+			.prepare("DELETE FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id = ?")
 			.bind(this.ctx.props.pluginId, key)
 			.run();
 		return (result.meta?.changes ?? 0) > 0;
@@ -495,7 +576,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 	private async readSiteWriteFence(): Promise<SiteWriteFence> {
 		try {
-			const row = await this.env.DB.prepare(SITE_WRITE_FENCE_SQL).first<{
+			const row = await this.getD1Database().prepare(SITE_WRITE_FENCE_SQL).first<{
 				media_state: string | null;
 				import_id: string | null;
 				export_id: string | null;
@@ -508,9 +589,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			if (!MISSING_TRANSFER_OPERATIONS_TABLE_REGEX.test(message)) throw error;
-			const activation = await this.env.DB.prepare(
-				"SELECT state FROM _emdash_media_usage_activation WHERE task_key = ? LIMIT 1",
-			)
+			const activation = await this.getD1Database()
+				.prepare("SELECT state FROM _emdash_media_usage_activation WHERE task_key = ? LIMIT 1")
 				.bind("incremental_capture")
 				.first<{ state: string }>();
 			return { mediaState: activation?.state ?? null, importId: null, exportId: null };
@@ -539,9 +619,11 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		}
 		if (fence.exportId) {
 			try {
-				await this.env.DB.prepare(
-					"UPDATE _emdash_transfer_operations SET write_epoch = write_epoch + 1 WHERE kind = 'export' AND state = 'running'",
-				).run();
+				await this.getD1Database()
+					.prepare(
+						"UPDATE _emdash_transfer_operations SET write_epoch = write_epoch + 1 WHERE kind = 'export' AND state = 'running'",
+					)
+					.run();
 			} catch (error) {
 				console.error("[transfer] Failed to record a write for running exports:", error);
 			}
@@ -564,7 +646,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			...(config?.uniqueIndexes ?? []),
 		];
 		const db = new Kysely<unknown>({
-			dialect: new D1Dialect({ database: this.env.DB }),
+			dialect: new D1Dialect({ database: this.getD1Database() }),
 		});
 		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- Kysely<unknown> is compatible with PluginStorageRepository's expected db
 		return new PluginStorageRepository(db as never, pluginId, collection, allIndexes);
@@ -581,9 +663,10 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			await this.getSettingsAccess()
 		).get(key.slice(SETTINGS_KEY_PREFIX.length));
 		if (settingValue !== null) return settingValue;
-		const result = await this.env.DB.prepare(
-			"SELECT data FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id = ?",
-		)
+		const result = await this.getD1Database()
+			.prepare(
+				"SELECT data FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id = ?",
+			)
 			.bind(pluginId, key)
 			.first<{ data: string }>();
 		if (!result) return null;
@@ -664,9 +747,10 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			SETTINGS_KEY_PREFIX.startsWith(prefix) || prefix.startsWith(SETTINGS_KEY_PREFIX);
 		if (!includesSettings) return (await this.getKVAccess()).list(prefix);
 		const { pluginId } = this.ctx.props;
-		const results = await this.env.DB.prepare(
-			"SELECT id, data FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id LIKE 'settings:%'",
-		)
+		const results = await this.getD1Database()
+			.prepare(
+				"SELECT id, data FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id LIKE 'settings:%'",
+			)
 			.bind(pluginId)
 			.all<{ id: string; data: string }>();
 
@@ -736,9 +820,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!storageCollections.includes(collection)) {
 			throw new Error(`Storage collection not declared: ${collection}`);
 		}
-		const result = await this.env.DB.prepare(
-			"SELECT data FROM _plugin_storage WHERE plugin_id = ? AND collection = ? AND id = ?",
-		)
+		const result = await this.getD1Database()
+			.prepare("SELECT data FROM _plugin_storage WHERE plugin_id = ? AND collection = ? AND id = ?")
 			.bind(pluginId, collection, id)
 			.first<{ data: string }>();
 		if (!result) return null;
@@ -750,9 +833,10 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!storageCollections.includes(collection)) {
 			throw new Error(`Storage collection not declared: ${collection}`);
 		}
-		await this.env.DB.prepare(
-			"INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now')) ON CONFLICT (plugin_id, collection, id) DO UPDATE SET data = excluded.data, revision = excluded.revision, updated_at = excluded.updated_at",
-		)
+		await this.getD1Database()
+			.prepare(
+				"INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now')) ON CONFLICT (plugin_id, collection, id) DO UPDATE SET data = excluded.data, revision = excluded.revision, updated_at = excluded.updated_at",
+			)
 			.bind(pluginId, collection, id, JSON.stringify(data), crypto.randomUUID())
 			.run();
 	}
@@ -820,9 +904,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!storageCollections.includes(collection)) {
 			throw new Error(`Storage collection not declared: ${collection}`);
 		}
-		const result = await this.env.DB.prepare(
-			"DELETE FROM _plugin_storage WHERE plugin_id = ? AND collection = ? AND id = ?",
-		)
+		const result = await this.getD1Database()
+			.prepare("DELETE FROM _plugin_storage WHERE plugin_id = ? AND collection = ? AND id = ?")
 			.bind(pluginId, collection, id)
 			.run();
 		return (result.meta?.changes ?? 0) > 0;
@@ -892,9 +975,10 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (items.length === 0) return;
 
 		for (const item of items) {
-			await this.env.DB.prepare(
-				"INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now')) ON CONFLICT (plugin_id, collection, id) DO UPDATE SET data = excluded.data, revision = excluded.revision, updated_at = excluded.updated_at",
-			)
+			await this.getD1Database()
+				.prepare(
+					"INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now')) ON CONFLICT (plugin_id, collection, id) DO UPDATE SET data = excluded.data, revision = excluded.revision, updated_at = excluded.updated_at",
+				)
 				.bind(pluginId, collection, item.id, JSON.stringify(item.data), crypto.randomUUID())
 				.run();
 		}
@@ -924,16 +1008,15 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
 		const { createContentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) });
 		try {
 			return await createContentAccess(db, {
 				site: this.ctx.props.siteInfo,
 				revisions: capabilities.includes("content:revisions:read"),
 			}).get(collection, id);
 		} catch {
-			const row = await this.env.DB.prepare(
-				`SELECT * FROM ec_${collection} WHERE id = ? AND deleted_at IS NULL`,
-			)
+			const row = await this.getD1Database()
+				.prepare(`SELECT * FROM ec_${collection} WHERE id = ? AND deleted_at IS NULL`)
 				.bind(id)
 				.first();
 			return row ? rowToContentItem(collection, row) : null;
@@ -953,7 +1036,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
 		const { createContentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) });
 		return createContentAccess(db, {
 			site: this.ctx.props.siteInfo,
 			revisions: capabilities.includes("content:revisions:read"),
@@ -1097,14 +1180,12 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			}
 		}
 		const placeholders = columns.map(() => "?").join(", ");
-		await this.env.DB.prepare(
-			`INSERT INTO ec_${collection} (${columns.join(", ")}) VALUES (${placeholders})`,
-		)
+		await this.getD1Database()
+			.prepare(`INSERT INTO ec_${collection} (${columns.join(", ")}) VALUES (${placeholders})`)
 			.bind(...values)
 			.run();
-		const created = await this.env.DB.prepare(
-			`SELECT * FROM ec_${collection} WHERE id = ? AND deleted_at IS NULL`,
-		)
+		const created = await this.getD1Database()
+			.prepare(`SELECT * FROM ec_${collection} WHERE id = ? AND deleted_at IS NULL`)
 			.bind(id)
 			.first();
 		return created
@@ -1131,7 +1212,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		}
 		const { ContentRepository, D1Dialect, Kysely } = await loadBridgeRuntime();
 		const db = new Kysely<Database>({
-			dialect: new D1Dialect({ database: this.env.DB }),
+			dialect: new D1Dialect({ database: this.getD1Database() }),
 		});
 		await this.assertSiteWriteAllowed();
 		const updated = await new ContentRepository(db).updateDraftAware(collection, id, {
@@ -1162,9 +1243,10 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		}
 		await this.assertSiteWriteAllowed();
 		const now = new Date().toISOString();
-		const result = await this.env.DB.prepare(
-			`UPDATE ec_${collection} SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`,
-		)
+		const result = await this.getD1Database()
+			.prepare(
+				`UPDATE ec_${collection} SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`,
+			)
 			.bind(now, now, id)
 			.run();
 		return (result.meta?.changes ?? 0) > 0;
@@ -1175,7 +1257,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error("Missing capability: comments:read");
 		}
 		const { createCommentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) });
 		return createCommentAccess(db).get(id);
 	}
 
@@ -1184,7 +1266,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error("Missing capability: comments:read");
 		}
 		const { createCommentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) });
 		return createCommentAccess(db).list(opts);
 	}
 
@@ -1193,7 +1275,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error("Missing capability: comments:read");
 		}
 		const { createCommentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) });
 		return createCommentAccess(db).count(opts);
 	}
 
@@ -1228,9 +1310,15 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 				},
 			};
 		}
-		if (!commentModerateCallback) throw new Error("Comment moderation is unavailable");
+		const runtimeId = this.ctx.props.runtimeId;
+		const moderateCallback = runtimeId
+			? commentModerateCallbacks().get(runtimeId)
+			: !this.ctx.props.siteId
+				? commentModerateCallbacks().get(DEFAULT_RUNTIME_ID)
+				: undefined;
+		if (!moderateCallback) throw new Error("Comment moderation is unavailable");
 		try {
-			return await commentModerateCallback(this.ctx.props.pluginId, id, status, expectedStatus);
+			return await moderateCallback(this.ctx.props.pluginId, id, status, expectedStatus);
 		} catch (error) {
 			if (typeof error === "object" && error !== null && "code" in error) {
 				const code = error.code;
@@ -1373,7 +1461,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			params.push(opts.locale);
 		}
 		sql += " ORDER BY name ASC";
-		const results = await this.env.DB.prepare(sql)
+		const results = await this.getD1Database()
+			.prepare(sql)
 			.bind(...params)
 			.all();
 		return (results.results ?? []).map((row) => ({
@@ -1414,7 +1503,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		// Manual order first, then label with `id ASC` as a stable tiebreaker for
 		// terms sharing both — matching core's TaxonomyRepository.findByName.
 		sql += " ORDER BY sort_order ASC, label ASC, id ASC";
-		const results = await this.env.DB.prepare(sql)
+		const results = await this.getD1Database()
+			.prepare(sql)
 			.bind(...params)
 			.all();
 		return (results.results ?? []).map(rowToTaxonomyTerm);
@@ -1456,7 +1546,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			params.push(opts.locale);
 		}
 		sql += " ORDER BY taxonomies.locale ASC";
-		const results = await this.env.DB.prepare(sql)
+		const results = await this.getD1Database()
+			.prepare(sql)
 			.bind(...params)
 			.all();
 		return (results.results ?? []).map(rowToTaxonomyTerm);
@@ -1536,7 +1627,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error("Missing capability: redirects:read");
 		}
 		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) });
 		return redirectBridgeResult(() => createRedirectAccess(db).list(options));
 	}
 
@@ -1546,7 +1637,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error("Missing capability: redirects:read");
 		}
 		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) });
 		return redirectBridgeResult(() => createRedirectAccess(db).get(id));
 	}
 
@@ -1558,7 +1649,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error("Missing capability: redirects:write");
 		}
 		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) });
 		return redirectBridgeResult(() => createRedirectAccess(db, true).create(input));
 	}
 
@@ -1571,7 +1662,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error("Missing capability: redirects:write");
 		}
 		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) });
 		return redirectBridgeResult(() => createRedirectAccess(db, true).update(id, input));
 	}
 
@@ -1581,7 +1672,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error("Missing capability: redirects:write");
 		}
 		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) });
 		return redirectBridgeResult(() =>
 			createRedirectAccess(db, true).delete(id, { _rev: revision }),
 		);
@@ -1597,7 +1688,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error("Missing capability: media:read");
 		}
 		const { createMediaAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) });
 		return createMediaAccess(db).get(id);
 	}
 
@@ -1609,7 +1700,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error("Missing capability: media:read");
 		}
 		const { createMediaAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) });
 		return createMediaAccess(db).list(opts);
 	}
 
@@ -1625,7 +1716,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		// module-level callbacks registered by the runner are not always
 		// available. Read bytes directly from the R2 binding, matching
 		// mediaUpload and mediaDelete.
-		const bucket = this.env.MEDIA;
+		const bucket = this.getMediaBucket();
 		const storage: Pick<Storage, "download"> | undefined = bucket
 			? {
 					download: async (key: string): Promise<DownloadResult> => {
@@ -1644,7 +1735,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			: (this.getMediaStorageCallback() ?? undefined);
 		if (!storage) throw new Error("Media storage is not configured");
 		const { D1Dialect, Kysely, readPluginMediaBytes } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) });
 		return readPluginMediaBytes(db, storage, id, { maxBytes });
 	}
 
@@ -1656,7 +1747,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		const { D1Dialect, Kysely, parsePluginMediaMetadataPatch, updatePluginMediaMetadata } =
 			await loadBridgeRuntime();
 		const parsed: MediaMetadataPatch = parsePluginMediaMetadataPatch(patch);
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) });
 		return updatePluginMediaMetadata(db, id, parsed);
 	}
 
@@ -1680,8 +1771,12 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error("Missing capability: media:write");
 		}
 
-		if (!this.env.MEDIA) {
-			throw new Error("Media storage (R2) not configured. Add MEDIA binding to wrangler config.");
+		const bucket = this.getMediaBucket();
+		if (!bucket) {
+			const bindingName = this.ctx.props.mediaBindingName ?? "MEDIA";
+			throw new Error(
+				`Media storage (R2) not configured. Add ${bindingName} binding to wrangler config.`,
+			);
 		}
 		const { ulid } = await loadBridgeRuntime();
 
@@ -1706,21 +1801,22 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 		// Write bytes to R2 first, then create DB record.
 		// If DB insert fails, clean up the R2 object to prevent orphans.
-		await this.env.MEDIA.put(storageKey, bytes, {
+		await bucket.put(storageKey, bytes, {
 			httpMetadata: { contentType },
 		});
 
 		try {
 			// Create confirmed media record with ISO timestamp (matching core)
-			await this.env.DB.prepare(
-				"INSERT INTO media (id, filename, mime_type, size, storage_key, status, created_at) VALUES (?, ?, ?, ?, ?, 'ready', ?)",
-			)
+			await this.getD1Database()
+				.prepare(
+					"INSERT INTO media (id, filename, mime_type, size, storage_key, status, created_at) VALUES (?, ?, ?, ?, ?, 'ready', ?)",
+				)
 				.bind(mediaId, filename, contentType, bytes.byteLength, storageKey, now)
 				.run();
 		} catch (error) {
 			// Clean up R2 object on DB failure to prevent orphans
 			try {
-				await this.env.MEDIA.delete(storageKey);
+				await bucket.delete(storageKey);
 			} catch {
 				// Best-effort cleanup — log and continue
 				console.warn(`[plugin-bridge] Failed to clean up orphaned R2 object: ${storageKey}`);
@@ -1731,7 +1827,9 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		return {
 			mediaId,
 			storageKey,
-			url: `/_emdash/api/media/file/${storageKey}`,
+			url: this.ctx.props.siteId
+				? `/_emdash/api/site/${this.ctx.props.siteId}/media/file/${storageKey}`
+				: `/_emdash/api/media/file/${storageKey}`,
 		};
 	}
 
@@ -1742,19 +1840,24 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		}
 
 		// Look up the storage key before deleting
-		const media = await this.env.DB.prepare("SELECT storage_key FROM media WHERE id = ?")
+		const media = await this.getD1Database()
+			.prepare("SELECT storage_key FROM media WHERE id = ?")
 			.bind(id)
 			.first<{ storage_key: string }>();
 
 		if (!media) return false;
 
 		// Delete the DB row
-		const result = await this.env.DB.prepare("DELETE FROM media WHERE id = ?").bind(id).run();
+		const result = await this.getD1Database()
+			.prepare("DELETE FROM media WHERE id = ?")
+			.bind(id)
+			.run();
 
 		// Delete from R2 if the binding is available
-		if (this.env.MEDIA && media.storage_key) {
+		const bucket = this.getMediaBucket();
+		if (bucket && media.storage_key) {
 			try {
-				await this.env.MEDIA.delete(media.storage_key);
+				await bucket.delete(media.storage_key);
 			} catch {
 				// Log but don't fail - the DB row is already deleted
 				console.warn(`[plugin-bridge] Failed to delete R2 object: ${media.storage_key}`);
@@ -1792,9 +1895,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!capabilities.includes("users:read")) {
 			throw new Error("Missing capability: users:read");
 		}
-		const result = await this.env.DB.prepare(
-			"SELECT id, email, name, role, created_at FROM users WHERE id = ?",
-		)
+		const result = await this.getD1Database()
+			.prepare("SELECT id, email, name, role, created_at FROM users WHERE id = ?")
 			.bind(id)
 			.first<{
 				id: string;
@@ -1824,9 +1926,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!capabilities.includes("users:read")) {
 			throw new Error("Missing capability: users:read");
 		}
-		const result = await this.env.DB.prepare(
-			"SELECT id, email, name, role, created_at FROM users WHERE email = ?",
-		)
+		const result = await this.getD1Database()
+			.prepare("SELECT id, email, name, role, created_at FROM users WHERE email = ?")
 			.bind(email.toLowerCase())
 			.first<{
 				id: string;
@@ -1881,7 +1982,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		sql += " ORDER BY id DESC LIMIT ?";
 		params.push(limit + 1);
 
-		const results = await this.env.DB.prepare(sql)
+		const results = await this.getD1Database()
+			.prepare(sql)
 			.bind(...params)
 			.all<{
 				id: string;
@@ -1920,22 +2022,53 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		text: string;
 		html?: string;
 	}): Promise<void> {
-		const { capabilities, pluginId } = this.ctx.props;
+		const { capabilities, pluginId, runtimeId, siteId } = this.ctx.props;
 		if (!capabilities.includes("email:send")) {
 			throw new Error("Missing capability: email:send");
 		}
-		if (emailSendCallback) {
-			await emailSendCallback(message, pluginId);
+		const resolveCallback = () =>
+			(runtimeId ? emailSendCallbacks().get(runtimeId) : undefined) ??
+			(!siteId ? emailSendCallbacks().get(DEFAULT_RUNTIME_ID) : undefined);
+
+		const direct = resolveCallback();
+		if (direct) {
+			await direct(message, pluginId);
 			return;
 		}
 
 		const { withEmDashRuntime } = await import("emdash/middleware");
-		await withEmDashRuntime(async () => {
-			if (!emailSendCallback) {
-				throw new Error("Email is not configured. No email provider is available.");
-			}
-			await emailSendCallback(message, pluginId);
-		});
+		await withEmDashRuntime(
+			async (runtime) => {
+				if (runtime?.email?.isAvailable()) {
+					await runtime.email.send(message, pluginId);
+					return;
+				}
+				const callback = resolveCallback();
+				if (!callback) {
+					throw new Error("Email is not configured. No email provider is available.");
+				}
+				await callback(message, pluginId);
+			},
+			siteId ? { siteId } : undefined,
+		);
+	}
+
+	private resolveCronReschedule(): () => void {
+		const { runtimeId, siteId } = this.ctx.props;
+		return () => {
+			const cb =
+				(runtimeId ? cronRescheduleCallbacks().get(runtimeId) : undefined) ??
+				(!siteId ? cronRescheduleCallbacks().get(DEFAULT_RUNTIME_ID) : undefined);
+			cb?.();
+		};
+	}
+
+	private resolveCronNow(): (() => Date) | undefined {
+		const { runtimeId, siteId } = this.ctx.props;
+		return (
+			(runtimeId ? cronNowCallbacks().get(runtimeId) : undefined) ??
+			(!siteId ? cronNowCallbacks().get(DEFAULT_RUNTIME_ID) : undefined)
+		);
 	}
 
 	async cronSchedule(
@@ -1943,27 +2076,27 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		opts: { schedule: string; data?: Record<string, unknown> },
 	): Promise<void> {
 		const { CronAccessImpl, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) });
 		await new CronAccessImpl(
 			db,
 			this.ctx.props.pluginId,
-			() => cronRescheduleCallback?.(),
-			cronNowCallback ?? undefined,
+			this.resolveCronReschedule(),
+			this.resolveCronNow(),
 		).schedule(name, opts);
 	}
 
 	async cronCancel(name: string): Promise<void> {
 		const { CronAccessImpl, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		await new CronAccessImpl(db, this.ctx.props.pluginId, () => cronRescheduleCallback?.()).cancel(
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) });
+		await new CronAccessImpl(db, this.ctx.props.pluginId, this.resolveCronReschedule()).cancel(
 			name,
 		);
 	}
 
 	async cronList(): Promise<CronTaskInfo[]> {
 		const { CronAccessImpl, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return new CronAccessImpl(db, this.ctx.props.pluginId, () => cronRescheduleCallback?.()).list();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.getD1Database() }) });
+		return new CronAccessImpl(db, this.ctx.props.pluginId, this.resolveCronReschedule()).list();
 	}
 
 	// =========================================================================

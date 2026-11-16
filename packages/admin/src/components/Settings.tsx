@@ -49,6 +49,8 @@ export function Settings() {
 			</header>
 
 			<div className="mt-6 grid gap-8">
+				{isAdmin && (manifest?.sites?.length ?? 0) > 0 ? <MultisiteInfoSection /> : null}
+
 				{isAdmin ? (
 					<SettingsSection title={t`Site`}>
 						<SettingsNavRow
@@ -135,8 +137,6 @@ export function Settings() {
 						/>
 					</SettingsSection>
 				) : null}
-
-				{isAdmin && (manifest?.sites?.length ?? 0) > 0 ? <MultisiteInfoSection /> : null}
 
 				<SettingsSection title={t`Personal`}>
 					<SettingsNavRow

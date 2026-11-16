@@ -17,8 +17,9 @@ export const prerender = false;
  */
 export const DELETE: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
+	const tokenDb = emdash?.adminDb ?? emdash?.db;
 
-	if (!emdash?.db) {
+	if (!tokenDb) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
@@ -32,7 +33,7 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 	}
 
 	try {
-		const result = await handleApiTokenRevoke(emdash.db, tokenId, user.id);
+		const result = await handleApiTokenRevoke(tokenDb, tokenId, user.id);
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to revoke API token", "TOKEN_REVOKE_ERROR");

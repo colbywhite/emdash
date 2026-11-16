@@ -31,8 +31,9 @@ const createTokenSchema = z.object({
  */
 export const GET: APIRoute = async ({ locals }) => {
 	const { emdash, user } = locals;
+	const tokenDb = emdash?.adminDb ?? emdash?.db;
 
-	if (!emdash?.db) {
+	if (!tokenDb) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
@@ -40,7 +41,7 @@ export const GET: APIRoute = async ({ locals }) => {
 		return apiError("FORBIDDEN", "Admin privileges required", 403);
 	}
 
-	const result = await handleApiTokenList(emdash.db, user.id);
+	const result = await handleApiTokenList(tokenDb, user.id);
 	return unwrapResult(result);
 };
 
@@ -50,8 +51,9 @@ export const GET: APIRoute = async ({ locals }) => {
  */
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash, user } = locals;
+	const tokenDb = emdash?.adminDb ?? emdash?.db;
 
-	if (!emdash?.db) {
+	if (!tokenDb) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
@@ -63,7 +65,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const body = await parseBody(request, createTokenSchema);
 		if (isParseError(body)) return body;
 
-		const result = await handleApiTokenCreate(emdash.db, user.id, body);
+		const result = await handleApiTokenCreate(tokenDb, user.id, body);
 		return unwrapResult(result, 201);
 	} catch (error) {
 		return handleError(error, "Failed to create API token", "TOKEN_CREATE_ERROR");

@@ -219,7 +219,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr ""
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2544
+#: packages/admin/src/router.tsx:2550
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr ""
 
@@ -254,12 +254,12 @@ msgid "{0, plural, one {# field} other {# fields}}"
 msgstr ""
 
 #. placeholder {0}: uploadQueue.jobs.filter( (job) => job.status === "queued" || job.status === "uploading", ).length
-#: packages/admin/src/components/MediaPickerModal.tsx:1660
+#: packages/admin/src/components/MediaPickerModal.tsx:1664
 msgid "{0, plural, one {# file uploading} other {# files uploading}}"
 msgstr ""
 
 #. placeholder {0}: uploadQueue.overflowCount
-#: packages/admin/src/components/MediaPickerModal.tsx:1341
+#: packages/admin/src/components/MediaPickerModal.tsx:1345
 msgid "{0, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr ""
 
@@ -381,7 +381,7 @@ msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
 msgstr ""
 
 #. placeholder {0}: uploadQueue.failedCount
-#: packages/admin/src/components/MediaPickerModal.tsx:1667
+#: packages/admin/src/components/MediaPickerModal.tsx:1671
 msgid "{0, plural, one {# upload failed} other {# uploads failed}}"
 msgstr ""
 
@@ -396,17 +396,17 @@ msgid "{0, plural, one {+# more} other {+# more}}"
 msgstr ""
 
 #. placeholder {0}: selectedItems.length
-#: packages/admin/src/components/MediaPickerModal.tsx:887
+#: packages/admin/src/components/MediaPickerModal.tsx:891
 msgid "{0, plural, one {Add # file} other {Add # files}}"
 msgstr ""
 
 #. placeholder {0}: selectedItems.length
-#: packages/admin/src/components/MediaPickerModal.tsx:890
+#: packages/admin/src/components/MediaPickerModal.tsx:894
 msgid "{0, plural, one {Add # image} other {Add # images}}"
 msgstr ""
 
 #. placeholder {0}: selectedItems.length
-#: packages/admin/src/components/MediaPickerModal.tsx:889
+#: packages/admin/src/components/MediaPickerModal.tsx:893
 msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr ""
 
@@ -560,17 +560,17 @@ msgid "{0} of {1} steps · {2} of {3}"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:790
+#: packages/admin/src/router.tsx:796
 msgid "{0} of {total} could not be deleted"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:746
+#: packages/admin/src/router.tsx:752
 msgid "{0} of {total} could not be published"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:769
+#: packages/admin/src/router.tsx:775
 msgid "{0} of {total} could not be updated"
 msgstr ""
 
@@ -970,7 +970,7 @@ msgstr ""
 msgid "{records, plural, one {# record written} other {# records written}}"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:975
+#: packages/admin/src/components/MediaPickerModal.tsx:979
 msgid "{rejectedCount, plural, one {# file was not added.} other {# files were not added.}}"
 msgstr ""
 
@@ -1386,7 +1386,7 @@ msgstr "پذیرش و نصب"
 msgid "Accept & Update"
 msgstr "پذیرش و به‌روزرسانی"
 
-#: packages/admin/src/router.tsx:470
+#: packages/admin/src/router.tsx:472
 msgid "Accept invitation"
 msgstr ""
 
@@ -1402,7 +1402,7 @@ msgstr ""
 msgid "Access denied"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2566
+#: packages/admin/src/router.tsx:2572
 msgid "Access Denied"
 msgstr ""
 
@@ -1479,6 +1479,10 @@ msgstr ""
 msgid "Active"
 msgstr "فعال"
 
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:71
+msgid "Active context:"
+msgstr ""
+
 #. placeholder {0}: blockType.currentVersion
 #. placeholder {0}: version.version
 #: packages/admin/src/components/BlockTypeList.tsx:81
@@ -1497,7 +1501,7 @@ msgstr "افزودن"
 #. placeholder {0}: option.byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:399
 #: packages/admin/src/components/ContentList.tsx:649
-#: packages/admin/src/components/PortableTextEditor.tsx:3019
+#: packages/admin/src/components/PortableTextEditor.tsx:3020
 #: packages/admin/src/components/TaxonomyManager.tsx:716
 #: packages/admin/src/components/TaxonomyManager.tsx:1249
 msgid "Add {0}"
@@ -1646,7 +1650,7 @@ msgid "Add images to gallery"
 msgstr ""
 
 #: packages/admin/src/components/BlockListField.tsx:885
-#: packages/admin/src/components/PortableTextEditor.tsx:3019
+#: packages/admin/src/components/PortableTextEditor.tsx:3020
 msgid "Add item"
 msgstr ""
 
@@ -1854,12 +1858,24 @@ msgid "admin"
 msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
-#: packages/admin/src/components/Sidebar.tsx:460
+#: packages/admin/src/components/Sidebar.tsx:465
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "مدیر"
 
-#: packages/admin/src/components/Sidebar.tsx:741
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:77
+msgid "Admin DB cache key:"
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:91
+msgid "Admin DB ready"
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:91
+msgid "Admin DB uninitialized"
+msgstr ""
+
+#: packages/admin/src/components/Sidebar.tsx:763
 msgid "Admin navigation"
 msgstr "ناوبری مدیریت"
 
@@ -1868,7 +1884,7 @@ msgid "Administrator"
 msgstr "مدیر"
 
 #: packages/admin/src/components/BlocksField.tsx:2344
-#: packages/admin/src/components/PortableTextEditor.tsx:2013
+#: packages/admin/src/components/PortableTextEditor.tsx:2014
 msgid "Advanced"
 msgstr ""
 
@@ -1972,6 +1988,10 @@ msgstr "همه زبان‌ها"
 msgid "All roles"
 msgstr "همه نقش‌ها"
 
+#: packages/admin/src/components/Sidebar.tsx:917
+msgid "All sites"
+msgstr ""
+
 #: packages/admin/src/components/Sections.tsx:328
 msgid "All sources"
 msgstr ""
@@ -1982,7 +2002,7 @@ msgid "All statuses"
 msgstr "همه وضعیت‌ها"
 
 #: packages/admin/src/components/MediaLibrary.tsx:944
-#: packages/admin/src/components/MediaPickerModal.tsx:404
+#: packages/admin/src/components/MediaPickerModal.tsx:408
 #: packages/admin/src/components/Redirects.tsx:713
 msgid "All types"
 msgstr "همه انواع"
@@ -1999,7 +2019,7 @@ msgstr ""
 msgid "Allow multiple references"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:98
+#: packages/admin/src/components/Settings.tsx:101
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:220
 msgid "Allow users from specific domains to sign up"
 msgstr "اجازه ثبت‌نام کاربران از دامنه‌های خاص"
@@ -2014,7 +2034,7 @@ msgid "Allowed block types"
 msgstr ""
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:265
-#: packages/admin/src/router.tsx:2647
+#: packages/admin/src/router.tsx:2653
 msgid "Allowed Domains"
 msgstr "دامنه‌های مجاز"
 
@@ -2128,18 +2148,18 @@ msgstr ""
 #: packages/admin/src/components/TaxonomySidebar.tsx:696
 #: packages/admin/src/components/TaxonomySidebar.tsx:792
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:700
-#: packages/admin/src/router.tsx:721
-#: packages/admin/src/router.tsx:947
-#: packages/admin/src/router.tsx:1408
-#: packages/admin/src/router.tsx:1566
-#: packages/admin/src/router.tsx:1590
-#: packages/admin/src/router.tsx:1674
-#: packages/admin/src/router.tsx:1707
-#: packages/admin/src/router.tsx:2516
-#: packages/admin/src/router.tsx:2552
-#: packages/admin/src/router.tsx:3059
-#: packages/admin/src/router.tsx:3249
+#: packages/admin/src/router.tsx:706
+#: packages/admin/src/router.tsx:727
+#: packages/admin/src/router.tsx:953
+#: packages/admin/src/router.tsx:1414
+#: packages/admin/src/router.tsx:1572
+#: packages/admin/src/router.tsx:1596
+#: packages/admin/src/router.tsx:1680
+#: packages/admin/src/router.tsx:1713
+#: packages/admin/src/router.tsx:2522
+#: packages/admin/src/router.tsx:2558
+#: packages/admin/src/router.tsx:3065
+#: packages/admin/src/router.tsx:3255
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "خطایی رخ داد"
@@ -2234,11 +2254,11 @@ msgstr ""
 msgid "Any number"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:105
-#: packages/admin/src/components/Settings.tsx:109
+#: packages/admin/src/components/Settings.tsx:108
+#: packages/admin/src/components/Settings.tsx:112
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
-#: packages/admin/src/router.tsx:2659
+#: packages/admin/src/router.tsx:2665
 msgid "API Tokens"
 msgstr "توکن‌های API"
 
@@ -2392,7 +2412,7 @@ msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:98
 #: packages/admin/src/components/MediaLibrary.tsx:947
-#: packages/admin/src/components/MediaPickerModal.tsx:408
+#: packages/admin/src/components/MediaPickerModal.tsx:412
 msgid "Audio"
 msgstr ""
 
@@ -2443,7 +2463,7 @@ msgstr ""
 msgid "Authorize"
 msgstr "مجوز دادن"
 
-#: packages/admin/src/router.tsx:481
+#: packages/admin/src/router.tsx:483
 msgid "Authorize device"
 msgstr ""
 
@@ -2504,7 +2524,7 @@ msgstr ""
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1534
+#: packages/admin/src/router.tsx:1540
 msgid "Autosave failed"
 msgstr ""
 
@@ -2632,9 +2652,9 @@ msgstr ""
 msgid "Backup settings saved"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:126
+#: packages/admin/src/components/Settings.tsx:129
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
-#: packages/admin/src/router.tsx:2683
+#: packages/admin/src/router.tsx:2689
 msgid "Backups"
 msgstr ""
 
@@ -2646,7 +2666,7 @@ msgstr ""
 msgid "Bash"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2011
+#: packages/admin/src/components/PortableTextEditor.tsx:2012
 msgid "Basic blocks"
 msgstr ""
 
@@ -2775,7 +2795,7 @@ msgid "Build provenance verified"
 msgstr ""
 
 #: packages/admin/src/components/editor/blockTypes.ts:93
-#: packages/admin/src/components/PortableTextEditor.tsx:2054
+#: packages/admin/src/components/PortableTextEditor.tsx:2055
 #: packages/admin/src/components/PortableTextEditor.tsx:6564
 msgid "Bullet List"
 msgstr "لیست نشانه‌دار"
@@ -2821,6 +2841,7 @@ msgstr ""
 msgid "Byline field values"
 msgstr ""
 
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:22
 #: packages/admin/src/components/settings/transfer/labels.ts:15
 #: packages/admin/src/components/settings/transfer/labels.ts:80
 msgid "Byline fields"
@@ -2831,8 +2852,8 @@ msgstr ""
 msgid "Byline schema"
 msgstr ""
 
-#: packages/admin/src/components/Sidebar.tsx:583
-#: packages/admin/src/router.tsx:2996
+#: packages/admin/src/components/Sidebar.tsx:588
+#: packages/admin/src/router.tsx:3002
 msgid "Byline Schema"
 msgstr ""
 
@@ -2845,9 +2866,9 @@ msgstr ""
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1140
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
-#: packages/admin/src/components/Sidebar.tsx:549
+#: packages/admin/src/components/Sidebar.tsx:554
 #: packages/admin/src/lib/editor-sections.ts:34
-#: packages/admin/src/router.tsx:2985
+#: packages/admin/src/router.tsx:2991
 #: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "نام نگارندگان"
@@ -2864,10 +2885,14 @@ msgstr ""
 msgid "C++"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:147
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:163
+msgid "Cache Partitions"
+msgstr ""
+
+#: packages/admin/src/components/AdminCommandPalette.tsx:148
 #: packages/admin/src/components/ContentTypeEditor.tsx:597
-#: packages/admin/src/components/Sidebar.tsx:478
-#: packages/admin/src/router.tsx:553
+#: packages/admin/src/components/Sidebar.tsx:483
+#: packages/admin/src/router.tsx:559
 #: packages/admin/src/routes/calendar.tsx:286
 msgid "Calendar"
 msgstr ""
@@ -2904,13 +2929,13 @@ msgstr "می‌تواند محتوا را مشاهده کند"
 #: packages/admin/src/components/FieldEditor.tsx:1819
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
-#: packages/admin/src/components/MediaPickerModal.tsx:1641
+#: packages/admin/src/components/MediaPickerModal.tsx:1645
 #: packages/admin/src/components/MenuEditor.tsx:575
 #: packages/admin/src/components/MenuEditor.tsx:674
 #: packages/admin/src/components/MenuEditor.tsx:904
 #: packages/admin/src/components/MenuList.tsx:238
 #: packages/admin/src/components/PluginManager.tsx:822
-#: packages/admin/src/components/PortableTextEditor.tsx:2818
+#: packages/admin/src/components/PortableTextEditor.tsx:2819
 #: packages/admin/src/components/PortableTextEditor.tsx:5948
 #: packages/admin/src/components/PortableTextEditor.tsx:5974
 #: packages/admin/src/components/PortableTextEditor.tsx:6722
@@ -2998,7 +3023,7 @@ msgstr ""
 msgid "Capture is being prepared. Keep editing paused until setup is complete."
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:210
+#: packages/admin/src/components/AdminCommandPalette.tsx:211
 #: packages/admin/src/components/Widgets.tsx:151
 msgid "Categories"
 msgstr "دسته‌ها"
@@ -3031,8 +3056,8 @@ msgstr ""
 msgid "Center"
 msgstr ""
 
-#: packages/admin/src/components/BlockKitMediaPickerField.tsx:79
-#: packages/admin/src/components/BlockKitMediaPickerField.tsx:110
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:80
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:111
 #: packages/admin/src/components/FieldEditor.tsx:1066
 msgid "Change"
 msgstr "تغییر"
@@ -3161,7 +3186,7 @@ msgstr ""
 msgid "Changes apply everywhere this byline appears."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1607
+#: packages/admin/src/router.tsx:1613
 msgid "Changes discarded"
 msgstr ""
 
@@ -3300,7 +3325,7 @@ msgstr ""
 msgid "Choose a date range"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:239
+#: packages/admin/src/components/MediaPickerModal.tsx:243
 msgid "Choose a file from the library or upload a new one."
 msgstr ""
 
@@ -3329,11 +3354,11 @@ msgstr ""
 msgid "Choose a valid date"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:241
+#: packages/admin/src/components/MediaPickerModal.tsx:245
 msgid "Choose a video from the library or upload a new one."
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:242
+#: packages/admin/src/components/MediaPickerModal.tsx:246
 msgid "Choose an image from the library or upload a new one."
 msgstr ""
 
@@ -3350,7 +3375,7 @@ msgstr ""
 msgid "Choose bylines"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1145
+#: packages/admin/src/components/MediaPickerModal.tsx:1149
 msgid "Choose files to upload"
 msgstr ""
 
@@ -3387,7 +3412,7 @@ msgstr ""
 msgid "Choose what kind of content the field holds."
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:143
+#: packages/admin/src/components/Settings.tsx:146
 msgid "Choose what the navigation and editor sidebars show, and in what order"
 msgstr ""
 
@@ -3411,7 +3436,7 @@ msgstr ""
 msgid "Choose Windows Hello or another available credential manager, then confirm with your PIN, fingerprint, or face."
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:157
+#: packages/admin/src/components/Settings.tsx:160
 msgid "Choose your preferred admin language"
 msgstr "زبان مدیریت مورد نظر خود را انتخاب کنید"
 
@@ -3500,8 +3525,8 @@ msgstr ""
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:466
 #: packages/admin/src/components/MediaDetailPanel.tsx:1136
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
-#: packages/admin/src/components/MediaPickerModal.tsx:1052
-#: packages/admin/src/components/MediaPickerModal.tsx:1059
+#: packages/admin/src/components/MediaPickerModal.tsx:1056
+#: packages/admin/src/components/MediaPickerModal.tsx:1063
 #: packages/admin/src/components/MediaUploadDialog.tsx:240
 #: packages/admin/src/components/SectionPickerModal.tsx:61
 #: packages/admin/src/components/SectionPickerModal.tsx:67
@@ -3547,7 +3572,7 @@ msgid "Code"
 msgstr "کد"
 
 #: packages/admin/src/components/editor/blockTypes.ts:117
-#: packages/admin/src/components/PortableTextEditor.tsx:2084
+#: packages/admin/src/components/PortableTextEditor.tsx:2085
 #: packages/admin/src/components/PortableTextEditor.tsx:6606
 msgid "Code Block"
 msgstr "بلوک کد"
@@ -3584,14 +3609,18 @@ msgstr ""
 msgid "Collection “{0}” was created on this site"
 msgstr ""
 
-#: packages/admin/src/router.tsx:811
-#: packages/admin/src/router.tsx:1014
-#: packages/admin/src/router.tsx:2034
+#: packages/admin/src/router.tsx:817
+#: packages/admin/src/router.tsx:1020
+#: packages/admin/src/router.tsx:2040
 msgid "Collection \"{collection}\" not found"
 msgstr ""
 
 #: packages/admin/src/lib/api/schema.ts:353
 msgid "Collection \"{slug}\" not found"
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:20
+msgid "Collection slugs"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:109
@@ -3668,8 +3697,8 @@ msgstr ""
 #: packages/admin/src/components/ContentTypeEditor.tsx:713
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
-#: packages/admin/src/components/Sidebar.tsx:513
-#: packages/admin/src/router.tsx:2441
+#: packages/admin/src/components/Sidebar.tsx:518
+#: packages/admin/src/router.tsx:2447
 msgid "Comments"
 msgstr "دیدگاه‌ها"
 
@@ -3705,7 +3734,7 @@ msgstr ""
 msgid "Confirm"
 msgstr "تأیید"
 
-#: packages/admin/src/router.tsx:444
+#: packages/admin/src/router.tsx:446
 msgid "Confirm magic link"
 msgstr ""
 
@@ -3767,14 +3796,14 @@ msgstr ""
 msgid "content"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:407
+#: packages/admin/src/components/AdminCommandPalette.tsx:408
 #: packages/admin/src/components/comments/CommentDetail.tsx:106
 #: packages/admin/src/components/comments/CommentInbox.tsx:359
 #: packages/admin/src/components/Dashboard.tsx:499
 #: packages/admin/src/components/SectionEditor.tsx:215
-#: packages/admin/src/components/Sidebar.tsx:458
+#: packages/admin/src/components/Sidebar.tsx:463
 #: packages/admin/src/components/Widgets.tsx:986
-#: packages/admin/src/router.tsx:565
+#: packages/admin/src/router.tsx:571
 msgid "Content"
 msgstr "محتوا"
 
@@ -3795,7 +3824,7 @@ msgstr "خطاهای محتوا ({0})"
 msgid "Content found:"
 msgstr "محتوای یافت‌شده:"
 
-#: packages/admin/src/router.tsx:1656
+#: packages/admin/src/router.tsx:1662
 msgid "Content has been scheduled for publishing"
 msgstr ""
 
@@ -3803,7 +3832,7 @@ msgstr ""
 msgid "Content ID:"
 msgstr "شناسه محتوا:"
 
-#: packages/admin/src/router.tsx:1560
+#: packages/admin/src/router.tsx:1566
 msgid "Content is now live"
 msgstr ""
 
@@ -3828,11 +3857,11 @@ msgstr ""
 msgid "Content refers to media that is not in the package"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1584
+#: packages/admin/src/router.tsx:1590
 msgid "Content removed from public view"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1667
+#: packages/admin/src/router.tsx:1673
 msgid "Content reverted to draft"
 msgstr ""
 
@@ -3852,10 +3881,10 @@ msgstr "محتوا برای درون‌ریزی"
 msgid "Content types"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:202
+#: packages/admin/src/components/AdminCommandPalette.tsx:203
 #: packages/admin/src/components/ContentTypeList.tsx:148
-#: packages/admin/src/components/Sidebar.tsx:579
-#: packages/admin/src/router.tsx:3004
+#: packages/admin/src/components/Sidebar.tsx:584
+#: packages/admin/src/router.tsx:3010
 msgid "Content Types"
 msgstr "انواع محتوا"
 
@@ -4013,11 +4042,11 @@ msgstr ""
 msgid "Could not load dashboard data"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:691
+#: packages/admin/src/components/MediaPickerModal.tsx:695
 msgid "Could not load image from URL"
 msgstr "بارگذاری تصویر از آدرس ممکن نبود"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1441
+#: packages/admin/src/components/MediaPickerModal.tsx:1445
 msgid "Could not load media."
 msgstr ""
 
@@ -4029,7 +4058,7 @@ msgstr ""
 msgid "Could not load this entry's details."
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1253
+#: packages/admin/src/components/MediaPickerModal.tsx:1257
 msgid "Could not load this folder."
 msgstr ""
 
@@ -4203,7 +4232,7 @@ msgstr ""
 msgid "Create a block type before adding a blocks field."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2055
+#: packages/admin/src/components/PortableTextEditor.tsx:2056
 msgid "Create a bullet list"
 msgstr "ساخت لیست نشانه‌دار"
 
@@ -4216,7 +4245,7 @@ msgstr "ساخت {0} جدید"
 msgid "Create a new {singularLabel}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2065
+#: packages/admin/src/components/PortableTextEditor.tsx:2066
 msgid "Create a numbered list"
 msgstr "ساخت لیست شماره‌دار"
 
@@ -4273,7 +4302,7 @@ msgstr ""
 msgid "Create passkey"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:110
+#: packages/admin/src/components/Settings.tsx:113
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:211
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:245
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:344
@@ -4389,7 +4418,7 @@ msgid "Created {0}"
 msgstr "ساخته شده در {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1699
+#: packages/admin/src/router.tsx:1705
 msgid "Created {0} translation"
 msgstr ""
 
@@ -4504,7 +4533,7 @@ msgid "Custom Taxonomies"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:2464
-#: packages/admin/src/components/Sidebar.tsx:796
+#: packages/admin/src/components/Sidebar.tsx:805
 msgid "Customize sidebar"
 msgstr ""
 
@@ -4518,14 +4547,18 @@ msgstr ""
 msgid "Dark mode variant"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:140
+#: packages/admin/src/components/AdminCommandPalette.tsx:141
 #: packages/admin/src/components/ContentTypeList.tsx:408
 #: packages/admin/src/components/Dashboard.tsx:75
-#: packages/admin/src/components/Shell.tsx:85
-#: packages/admin/src/components/Sidebar.tsx:475
-#: packages/admin/src/router.tsx:535
+#: packages/admin/src/components/Shell.tsx:93
+#: packages/admin/src/components/Sidebar.tsx:480
+#: packages/admin/src/router.tsx:537
 msgid "Dashboard"
 msgstr "داشبورد"
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:125
+msgid "Database"
+msgstr ""
 
 #: packages/admin/src/components/BlockTypeList.tsx:31
 msgid "Database-owned definitions available to blocks fields."
@@ -4562,6 +4595,14 @@ msgstr "قالب تاریخ"
 msgid "Date range"
 msgstr ""
 
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:112
+msgid "DB ready"
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:112
+msgid "DB uninitialized"
+msgstr ""
+
 #: packages/admin/src/components/FieldEditor.tsx:669
 msgid "Decimal number"
 msgstr "عدد اعشاری"
@@ -4577,6 +4618,10 @@ msgstr ""
 #: packages/admin/src/components/PortableTextEditor.tsx:3807
 msgctxt "button style"
 msgid "Default"
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:138
+msgid "Default / unset"
 msgstr ""
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:371
@@ -5151,7 +5196,7 @@ msgid "Distribute columns evenly"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:46
-#: packages/admin/src/components/PortableTextEditor.tsx:2094
+#: packages/admin/src/components/PortableTextEditor.tsx:2095
 msgid "Divider"
 msgstr "جداکننده"
 
@@ -5165,7 +5210,7 @@ msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:95
 #: packages/admin/src/components/MediaLibrary.tsx:948
-#: packages/admin/src/components/MediaPickerModal.tsx:409
+#: packages/admin/src/components/MediaPickerModal.tsx:413
 msgid "Documents"
 msgstr ""
 
@@ -5235,7 +5280,7 @@ msgstr ""
 msgid "Download Backup"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:127
+#: packages/admin/src/components/Settings.tsx:130
 #: packages/admin/src/components/settings/BackupSettings.tsx:145
 msgid "Download backups and schedule automatic backups to storage"
 msgstr ""
@@ -5317,7 +5362,7 @@ msgstr "بکشید و رها کنید یا برای مرور کلیک کنید (
 msgid "Drag here to add"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3195
+#: packages/admin/src/components/PortableTextEditor.tsx:3196
 msgid "Drag to reorder"
 msgstr ""
 
@@ -5432,7 +5477,7 @@ msgstr ""
 #: packages/admin/src/components/Redirects.tsx:519
 #: packages/admin/src/components/RelationList.tsx:241
 #: packages/admin/src/components/Sections.tsx:513
-#: packages/admin/src/components/Shell.tsx:126
+#: packages/admin/src/components/Shell.tsx:134
 #: packages/admin/src/components/TaxonomyManager.tsx:403
 #: packages/admin/src/components/TranslationsPanel.tsx:95
 #: packages/admin/src/routes/byline-schema.tsx:427
@@ -5444,7 +5489,7 @@ msgstr "ویرایش"
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:379
-#: packages/admin/src/components/PortableTextEditor.tsx:2762
+#: packages/admin/src/components/PortableTextEditor.tsx:2763
 #: packages/admin/src/components/RelationFormPanel.tsx:128
 #: packages/admin/src/components/RelationList.tsx:194
 #: packages/admin/src/components/RelationsPanel.tsx:203
@@ -5483,7 +5528,7 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:462
 #: packages/admin/src/components/ImageFieldRenderer.tsx:525
 #: packages/admin/src/components/ImageFieldRenderer.tsx:593
-#: packages/admin/src/components/MediaPickerModal.tsx:1637
+#: packages/admin/src/components/MediaPickerModal.tsx:1641
 msgid "Edit asset"
 msgstr ""
 
@@ -5502,11 +5547,11 @@ msgstr ""
 msgid "Edit caption"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1058
+#: packages/admin/src/router.tsx:1064
 msgid "Edit content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3198
+#: packages/admin/src/router.tsx:3204
 msgid "Edit content type"
 msgstr ""
 
@@ -5557,7 +5602,7 @@ msgstr ""
 msgid "Edit media alt text, captions, and focal points"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2902
+#: packages/admin/src/router.tsx:2908
 msgid "Edit menu"
 msgstr ""
 
@@ -5587,7 +5632,7 @@ msgstr "ویرایش    تغییر مسیر {0}"
 msgid "Edit role"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2951
+#: packages/admin/src/router.tsx:2957
 msgid "Edit section"
 msgstr ""
 
@@ -5690,7 +5735,7 @@ msgid "em1.…"
 msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:65
-#: packages/admin/src/components/Settings.tsx:120
+#: packages/admin/src/components/Settings.tsx:123
 #: packages/admin/src/components/SignupPage.tsx:220
 #: packages/admin/src/components/users/UserDetail.tsx:167
 msgid "Email"
@@ -5731,9 +5776,9 @@ msgstr ""
 msgid "Email provider active"
 msgstr "ارائه‌دهنده ایمیل فعال"
 
-#: packages/admin/src/components/Settings.tsx:116
+#: packages/admin/src/components/Settings.tsx:119
 #: packages/admin/src/components/settings/EmailSettings.tsx:181
-#: packages/admin/src/router.tsx:2671
+#: packages/admin/src/router.tsx:2677
 msgid "Email Settings"
 msgstr "تنظیمات ایمیل"
 
@@ -5763,7 +5808,7 @@ msgstr ""
 msgid "Embed a {0}"
 msgstr "جاسازی {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2138
+#: packages/admin/src/components/PortableTextEditor.tsx:2139
 msgid "Embed a page from another site"
 msgstr ""
 
@@ -5775,7 +5820,7 @@ msgstr ""
 msgid "Embedded content"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2014
+#: packages/admin/src/components/PortableTextEditor.tsx:2015
 msgid "Embeds"
 msgstr "جاسازی‌ها"
 
@@ -5917,7 +5962,7 @@ msgstr ""
 msgid "Enter a full URL that starts with https:// or http://."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2674
+#: packages/admin/src/components/PortableTextEditor.tsx:2675
 msgid "Enter a full URL, such as https://example.com."
 msgstr ""
 
@@ -5944,15 +5989,15 @@ msgstr ""
 msgid "Enter a name."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2659
+#: packages/admin/src/components/PortableTextEditor.tsx:2660
 msgid "Enter a number between {min} and {max}."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2661
+#: packages/admin/src/components/PortableTextEditor.tsx:2662
 msgid "Enter a number of {max} or less."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2660
+#: packages/admin/src/components/PortableTextEditor.tsx:2661
 msgid "Enter a number of {min} or more."
 msgstr ""
 
@@ -6074,7 +6119,7 @@ msgstr ""
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:127
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:136
-#: packages/admin/src/components/PortableTextEditor.tsx:2806
+#: packages/admin/src/components/PortableTextEditor.tsx:2807
 msgid "Enter URL..."
 msgstr ""
 
@@ -6117,7 +6162,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:3532
+#: packages/admin/src/router.tsx:3538
 msgid "Error"
 msgstr "خطا"
 
@@ -6137,7 +6182,7 @@ msgstr "خطا در ذخیره بخش"
 msgid "Error updating widget"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2595
+#: packages/admin/src/components/PortableTextEditor.tsx:2596
 msgid "esc"
 msgstr ""
 
@@ -6461,7 +6506,7 @@ msgid "Failed to create term translation"
 msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:791
-#: packages/admin/src/router.tsx:1704
+#: packages/admin/src/router.tsx:1710
 msgid "Failed to create translation"
 msgstr ""
 
@@ -6473,7 +6518,7 @@ msgstr ""
 msgid "Failed to create widget area"
 msgstr ""
 
-#: packages/admin/src/router.tsx:789
+#: packages/admin/src/router.tsx:795
 msgid "Failed to delete"
 msgstr ""
 
@@ -6595,7 +6640,7 @@ msgstr ""
 msgid "Failed to download a package file"
 msgstr ""
 
-#: packages/admin/src/router.tsx:720
+#: packages/admin/src/router.tsx:726
 msgid "Failed to duplicate"
 msgstr ""
 
@@ -6636,7 +6681,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:397
+#: packages/admin/src/lib/api/client.ts:467
 msgid "Failed to fetch auth mode"
 msgstr ""
 
@@ -6710,7 +6755,7 @@ msgstr ""
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:380
+#: packages/admin/src/lib/api/client.ts:450
 msgid "Failed to fetch manifest"
 msgstr ""
 
@@ -6748,6 +6793,10 @@ msgstr ""
 
 #: packages/admin/src/lib/api/menus.ts:117
 msgid "Failed to fetch menus"
+msgstr ""
+
+#: packages/admin/src/lib/api/multisite.ts:53
+msgid "Failed to fetch multi-site diagnostics"
 msgstr ""
 
 #: packages/admin/src/lib/api/schema.ts:529
@@ -6857,7 +6906,7 @@ msgstr ""
 #: packages/admin/src/lib/api/current-user.ts:30
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2462
+#: packages/admin/src/router.tsx:2468
 msgid "Failed to fetch user"
 msgstr ""
 
@@ -6930,7 +6979,7 @@ msgstr ""
 msgid "Failed to list files to upload"
 msgstr ""
 
-#: packages/admin/src/router.tsx:519
+#: packages/admin/src/router.tsx:521
 msgid "Failed to load admin"
 msgstr ""
 
@@ -6966,7 +7015,7 @@ msgstr ""
 msgid "Failed to load exports"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:675
+#: packages/admin/src/components/MediaPickerModal.tsx:679
 msgid "Failed to load image"
 msgstr ""
 
@@ -6989,6 +7038,10 @@ msgstr ""
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:77
 msgid "visualEditing.mediaLoadFailed"
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:61
+msgid "Failed to load multi-site diagnostics"
 msgstr ""
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:128
@@ -7046,7 +7099,7 @@ msgid "Failed to lock the entry"
 msgstr ""
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2551
+#: packages/admin/src/router.tsx:2557
 msgid "Failed to perform bulk action"
 msgstr ""
 
@@ -7063,8 +7116,8 @@ msgstr ""
 msgid "Failed to probe URL"
 msgstr ""
 
-#: packages/admin/src/router.tsx:745
-#: packages/admin/src/router.tsx:1565
+#: packages/admin/src/router.tsx:751
+#: packages/admin/src/router.tsx:1571
 msgid "Failed to publish"
 msgstr ""
 
@@ -7076,7 +7129,7 @@ msgstr ""
 msgid "Failed to read byline field usage"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3058
+#: packages/admin/src/router.tsx:3064
 msgid "Failed to register {slug}"
 msgstr ""
 
@@ -7131,7 +7184,7 @@ msgstr ""
 msgid "Failed to replace media image"
 msgstr ""
 
-#: packages/admin/src/router.tsx:699
+#: packages/admin/src/router.tsx:705
 msgid "Failed to restore"
 msgstr ""
 
@@ -7155,9 +7208,9 @@ msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:2484
 #: packages/admin/src/components/ContentEditor.tsx:2738
-#: packages/admin/src/router.tsx:942
-#: packages/admin/src/router.tsx:1403
-#: packages/admin/src/router.tsx:3248
+#: packages/admin/src/router.tsx:948
+#: packages/admin/src/router.tsx:1409
+#: packages/admin/src/router.tsx:3254
 msgid "Failed to save"
 msgstr "ذخیره ناموفق بود"
 
@@ -7229,7 +7282,7 @@ msgstr ""
 msgid "Failed to uninstall plugin"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1589
+#: packages/admin/src/router.tsx:1595
 msgid "Failed to unpublish"
 msgstr ""
 
@@ -7237,7 +7290,7 @@ msgstr ""
 msgid "Failed to unpublish content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1673
+#: packages/admin/src/router.tsx:1679
 msgid "Failed to unschedule"
 msgstr ""
 
@@ -7245,7 +7298,7 @@ msgstr ""
 msgid "Failed to unschedule content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:768
+#: packages/admin/src/router.tsx:774
 msgid "Failed to update"
 msgstr ""
 
@@ -7336,7 +7389,7 @@ msgstr ""
 msgid "Failed to update settings"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2515
+#: packages/admin/src/router.tsx:2521
 msgid "Failed to update status"
 msgstr ""
 
@@ -7481,11 +7534,11 @@ msgctxt "button style"
 msgid "Fill"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2677
+#: packages/admin/src/components/PortableTextEditor.tsx:2678
 msgid "Fill in at least one field."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2765
+#: packages/admin/src/components/PortableTextEditor.tsx:2766
 msgid "Fill in what this block shows."
 msgstr ""
 
@@ -7535,7 +7588,7 @@ msgid "Filter by status"
 msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:950
-#: packages/admin/src/components/MediaPickerModal.tsx:1327
+#: packages/admin/src/components/MediaPickerModal.tsx:1331
 #: packages/admin/src/components/Redirects.tsx:714
 msgid "Filter by type"
 msgstr ""
@@ -7553,7 +7606,7 @@ msgid "Finish any current edits."
 msgstr ""
 
 #: packages/admin/src/components/ListPaginationFooter.tsx:109
-#: packages/admin/src/components/MediaPickerModal.tsx:1597
+#: packages/admin/src/components/MediaPickerModal.tsx:1601
 msgid "First page"
 msgstr ""
 
@@ -7598,7 +7651,7 @@ msgstr ""
 msgid "Focal point. Use arrow keys to move it."
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1247
+#: packages/admin/src/components/MediaPickerModal.tsx:1251
 msgid "Folder"
 msgstr ""
 
@@ -7606,11 +7659,11 @@ msgstr ""
 msgid "Folder deleted"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2184
+#: packages/admin/src/router.tsx:2190
 msgid "Folder no longer exists"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:504
+#: packages/admin/src/components/MediaPickerModal.tsx:508
 msgid "Folder no longer exists. Returned to the main library."
 msgstr ""
 
@@ -7627,14 +7680,14 @@ msgid "Folder unavailable"
 msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:977
-#: packages/admin/src/components/MediaPickerModal.tsx:1365
+#: packages/admin/src/components/MediaPickerModal.tsx:1369
 msgid "Folders"
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1552
 #: packages/admin/src/components/MediaLibrary.tsx:987
 #: packages/admin/src/components/MediaLibrary.tsx:1492
-#: packages/admin/src/components/MediaPickerModal.tsx:1370
+#: packages/admin/src/components/MediaPickerModal.tsx:1374
 msgid "Folders could not be loaded."
 msgstr ""
 
@@ -7683,7 +7736,7 @@ msgstr ""
 msgid "From the post owner"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:386
+#: packages/admin/src/components/MediaPickerModal.tsx:390
 msgid "From URL"
 msgstr ""
 
@@ -7712,12 +7765,12 @@ msgstr ""
 msgid "Gallery settings"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:56
+#: packages/admin/src/components/Settings.tsx:59
 msgid "General"
 msgstr "عمومی"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
-#: packages/admin/src/router.tsx:2722
+#: packages/admin/src/router.tsx:2728
 msgid "General Settings"
 msgstr "تنظیمات عمومی"
 
@@ -7762,7 +7815,7 @@ msgid "Go live {countdown}"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2469
-#: packages/admin/src/router.tsx:3552
+#: packages/admin/src/router.tsx:3558
 msgid "Go to Dashboard"
 msgstr "رفتن به داشبورد"
 
@@ -7791,7 +7844,7 @@ msgid "GraphQL"
 msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:905
-#: packages/admin/src/components/MediaPickerModal.tsx:1283
+#: packages/admin/src/components/MediaPickerModal.tsx:1287
 msgid "Grid view"
 msgstr "نمای شبکه‌ای"
 
@@ -7859,37 +7912,37 @@ msgstr ""
 
 #: packages/admin/src/components/editor/blockTypes.ts:85
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:33
-#: packages/admin/src/components/PortableTextEditor.tsx:2049
+#: packages/admin/src/components/PortableTextEditor.tsx:2050
 msgid "Heading 1"
 msgstr "سرفصل ۱"
 
 #: packages/admin/src/components/editor/blockTypes.ts:86
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:34
-#: packages/admin/src/components/PortableTextEditor.tsx:2050
+#: packages/admin/src/components/PortableTextEditor.tsx:2051
 msgid "Heading 2"
 msgstr "سرفصل ۲"
 
 #: packages/admin/src/components/editor/blockTypes.ts:87
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:35
-#: packages/admin/src/components/PortableTextEditor.tsx:2051
+#: packages/admin/src/components/PortableTextEditor.tsx:2052
 msgid "Heading 3"
 msgstr "سرفصل ۳"
 
 #: packages/admin/src/components/editor/blockTypes.ts:88
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:36
-#: packages/admin/src/components/PortableTextEditor.tsx:2120
+#: packages/admin/src/components/PortableTextEditor.tsx:2121
 msgid "Heading 4"
 msgstr ""
 
 #: packages/admin/src/components/editor/blockTypes.ts:89
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:37
-#: packages/admin/src/components/PortableTextEditor.tsx:2121
+#: packages/admin/src/components/PortableTextEditor.tsx:2122
 msgid "Heading 5"
 msgstr ""
 
 #: packages/admin/src/components/editor/blockTypes.ts:90
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:38
-#: packages/admin/src/components/PortableTextEditor.tsx:2122
+#: packages/admin/src/components/PortableTextEditor.tsx:2123
 msgid "Heading 6"
 msgstr ""
 
@@ -7943,7 +7996,7 @@ msgstr "مخفی‌کردن توکن"
 msgid "visualEditing.hideToolbar"
 msgstr ""
 
-#: packages/admin/src/components/Shell.tsx:126
+#: packages/admin/src/components/Shell.tsx:134
 msgid "Hide toolbar"
 msgstr ""
 
@@ -7990,6 +8043,10 @@ msgstr ""
 msgid "Host"
 msgstr ""
 
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:69
+msgid "Host & Admin Database"
+msgstr ""
+
 #: packages/admin/src/components/settings/EmailSettings.tsx:117
 msgid "Host and user are required."
 msgstr ""
@@ -8017,7 +8074,7 @@ msgstr "چگونه گذرواژه برنامه بسازیم"
 #: packages/admin/src/components/editor/BlockMenu.tsx:47
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:38
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:51
-#: packages/admin/src/components/PortableTextEditor.tsx:2127
+#: packages/admin/src/components/PortableTextEditor.tsx:2128
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:502
 msgid "HTML"
 msgstr ""
@@ -8055,7 +8112,7 @@ msgstr ""
 msgid "https://example.com/blog/my-post"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1172
+#: packages/admin/src/components/MediaPickerModal.tsx:1176
 msgid "https://example.com/image.jpg"
 msgstr ""
 
@@ -8081,6 +8138,7 @@ msgid "Icon blurred due to image audit"
 msgstr "آیکون به دلیل بررسی تصویر محو شده"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:129
+#: packages/admin/src/components/SitesOverview.tsx:28
 msgid "ID"
 msgstr "ID"
 
@@ -8097,7 +8155,7 @@ msgid "If you didn't request this, you can safely ignore this email."
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:48
-#: packages/admin/src/components/PortableTextEditor.tsx:2137
+#: packages/admin/src/components/PortableTextEditor.tsx:2138
 msgid "Iframe"
 msgstr ""
 
@@ -8147,7 +8205,7 @@ msgstr "تصویر از کتابخانه رسانه"
 msgid "Image link"
 msgstr ""
 
-#: packages/admin/src/components/BlockKitMediaPickerField.tsx:70
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:71
 #: packages/admin/src/components/ImageFieldRenderer.tsx:638
 #: packages/admin/src/components/ImageFieldRenderer.tsx:677
 #: packages/admin/src/components/ImageFieldRenderer.tsx:884
@@ -8182,15 +8240,15 @@ msgstr "تصویر نمایش داده شده هنگام اشتراک‌گذار
 msgid "Image upload failed. Try again."
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1161
-#: packages/admin/src/components/MediaPickerModal.tsx:1171
+#: packages/admin/src/components/MediaPickerModal.tsx:1165
+#: packages/admin/src/components/MediaPickerModal.tsx:1175
 msgid "Image URL"
 msgstr "آدرس تصویر"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:93
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
 #: packages/admin/src/components/MediaLibrary.tsx:945
-#: packages/admin/src/components/MediaPickerModal.tsx:406
+#: packages/admin/src/components/MediaPickerModal.tsx:410
 msgid "Images"
 msgstr ""
 
@@ -8202,9 +8260,9 @@ msgstr ""
 msgid "Implicit TLS (port 465)"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:244
+#: packages/admin/src/components/AdminCommandPalette.tsx:245
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:605
+#: packages/admin/src/components/Sidebar.tsx:610
 #: packages/admin/src/components/WordPressImport.tsx:784
 msgid "Import"
 msgstr "درون‌ریزی"
@@ -8256,7 +8314,7 @@ msgid "Import failed"
 msgstr "درون‌ریزی ناموفق بود"
 
 #: packages/admin/src/components/WordPressImport.tsx:737
-#: packages/admin/src/router.tsx:2887
+#: packages/admin/src/router.tsx:2893
 msgid "Import from WordPress"
 msgstr "درون‌ریزی از وردپرس"
 
@@ -8402,24 +8460,24 @@ msgstr ""
 msgid "Inline Code"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2820
+#: packages/admin/src/components/PortableTextEditor.tsx:2821
 msgid "Insert"
 msgstr ""
 
 #. placeholder {0}: block?.label || ""
-#: packages/admin/src/components/PortableTextEditor.tsx:2762
+#: packages/admin/src/components/PortableTextEditor.tsx:2763
 msgid "Insert {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2075
+#: packages/admin/src/components/PortableTextEditor.tsx:2076
 msgid "Insert a blockquote"
 msgstr "درج نقل‌قول"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2085
+#: packages/admin/src/components/PortableTextEditor.tsx:2086
 msgid "Insert a code block"
 msgstr "درج بلوک کد"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2095
+#: packages/admin/src/components/PortableTextEditor.tsx:2096
 msgid "Insert a horizontal rule"
 msgstr "درج خط افقی"
 
@@ -8427,7 +8485,7 @@ msgstr "درج خط افقی"
 msgid "Insert a reusable section"
 msgstr "درج بخش قابل استفاده مجدد"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2113
+#: packages/admin/src/components/PortableTextEditor.tsx:2114
 msgid "Insert a table"
 msgstr ""
 
@@ -8439,7 +8497,7 @@ msgstr "درج تصویر"
 msgid "Insert an image gallery"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2491
+#: packages/admin/src/components/PortableTextEditor.tsx:2492
 msgid "Insert block"
 msgstr ""
 
@@ -8473,7 +8531,7 @@ msgstr ""
 msgid "Insert paragraph before"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2128
+#: packages/admin/src/components/PortableTextEditor.tsx:2129
 msgid "Insert raw HTML"
 msgstr ""
 
@@ -8621,7 +8679,7 @@ msgstr ""
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/BlockListField.tsx:386
-#: packages/admin/src/components/PortableTextEditor.tsx:3181
+#: packages/admin/src/components/PortableTextEditor.tsx:3182
 #: packages/admin/src/components/RepeaterField.tsx:252
 msgid "Item {0}"
 msgstr "مورد {0}"
@@ -8766,12 +8824,12 @@ msgstr ""
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:286
 #: packages/admin/src/components/LoginPage.tsx:360
-#: packages/admin/src/components/Settings.tsx:155
-#: packages/admin/src/components/Settings.tsx:169
+#: packages/admin/src/components/Settings.tsx:158
+#: packages/admin/src/components/Settings.tsx:172
 msgid "Language"
 msgstr "زبان"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2049
+#: packages/admin/src/components/PortableTextEditor.tsx:2050
 msgid "Large section heading"
 msgstr "سرتیتر بزرگ بخش"
 
@@ -8792,7 +8850,7 @@ msgid "Last Login"
 msgstr ""
 
 #: packages/admin/src/components/ListPaginationFooter.tsx:112
-#: packages/admin/src/components/MediaPickerModal.tsx:1600
+#: packages/admin/src/components/MediaPickerModal.tsx:1604
 msgid "Last page"
 msgstr ""
 
@@ -8862,8 +8920,8 @@ msgstr ""
 #: packages/admin/src/components/MediaLibrary.tsx:434
 #: packages/admin/src/components/MediaLibrary.tsx:711
 #: packages/admin/src/components/MediaLibrary.tsx:1284
-#: packages/admin/src/components/MediaPickerModal.tsx:381
-#: packages/admin/src/components/MediaPickerModal.tsx:398
+#: packages/admin/src/components/MediaPickerModal.tsx:385
+#: packages/admin/src/components/MediaPickerModal.tsx:402
 msgid "Library"
 msgstr "کتابخانه"
 
@@ -8981,7 +9039,7 @@ msgid "List each option only once."
 msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:914
-#: packages/admin/src/components/MediaPickerModal.tsx:1293
+#: packages/admin/src/components/MediaPickerModal.tsx:1297
 msgid "List view"
 msgstr "نمای لیستی"
 
@@ -9022,7 +9080,7 @@ msgstr "بارگذاری بیشتر"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1571
 #: packages/admin/src/components/MediaLibrary.tsx:1017
 #: packages/admin/src/components/MediaLibrary.tsx:1217
-#: packages/admin/src/components/MediaPickerModal.tsx:1419
+#: packages/admin/src/components/MediaPickerModal.tsx:1423
 msgid "Load more folders"
 msgstr ""
 
@@ -9030,8 +9088,12 @@ msgstr ""
 msgid "Load preview"
 msgstr ""
 
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:147
+msgid "Loaded plugins"
+msgstr ""
+
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
-#: packages/admin/src/router.tsx:3507
+#: packages/admin/src/router.tsx:3513
 msgid "Loading"
 msgstr ""
 
@@ -9060,8 +9122,8 @@ msgstr "در حال بارگذاری مجموعه‌ها..."
 msgid "Loading comments..."
 msgstr "در حال بارگذاری دیدگاه‌ها..."
 
-#: packages/admin/src/router.tsx:3509
-#: packages/admin/src/router.tsx:3521
+#: packages/admin/src/router.tsx:3515
+#: packages/admin/src/router.tsx:3527
 msgid "Loading configuration..."
 msgstr ""
 
@@ -9079,7 +9141,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:961
 #: packages/admin/src/components/MediaLibrary.tsx:1185
-#: packages/admin/src/components/MediaPickerModal.tsx:1388
+#: packages/admin/src/components/MediaPickerModal.tsx:1392
 msgid "Loading folders"
 msgstr ""
 
@@ -9091,7 +9153,7 @@ msgstr ""
 msgid "Loading imports…"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1436
+#: packages/admin/src/components/MediaPickerModal.tsx:1440
 msgid "Loading media"
 msgstr ""
 
@@ -9106,6 +9168,10 @@ msgstr "در حال بارگذاری فهرست..."
 #: packages/admin/src/components/MenuList.tsx:150
 msgid "Loading menus..."
 msgstr "در حال بارگذاری فهرستها..."
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:55
+msgid "Loading multi-site diagnostics…"
+msgstr ""
 
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:380
 msgid "Loading plugin panel"
@@ -9240,7 +9306,7 @@ msgstr "قفل نسبت تصویر"
 msgid "Locked because this field has stored values. Delete the values (or the field) to change this."
 msgstr ""
 
-#: packages/admin/src/router.tsx:430
+#: packages/admin/src/router.tsx:432
 msgid "Log in"
 msgstr ""
 
@@ -9276,7 +9342,7 @@ msgid "Lua"
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:576
-#: packages/admin/src/components/MediaPickerModal.tsx:1241
+#: packages/admin/src/components/MediaPickerModal.tsx:1245
 msgid "Main library"
 msgstr ""
 
@@ -9284,7 +9350,7 @@ msgstr ""
 msgid "Main Sidebar"
 msgstr ""
 
-#: packages/admin/src/components/Sidebar.tsx:459
+#: packages/admin/src/components/Sidebar.tsx:464
 msgid "Manage"
 msgstr "مدیریت"
 
@@ -9318,7 +9384,7 @@ msgstr ""
 msgid "Manage URL redirects and view 404 errors."
 msgstr "مدیریت    تغییر مسیر‌های آدرس و مشاهده خطاهای ۴۰۴."
 
-#: packages/admin/src/components/Settings.tsx:91
+#: packages/admin/src/components/Settings.tsx:94
 #: packages/admin/src/components/settings/SecuritySettings.tsx:94
 msgid "Manage your passkeys and authentication"
 msgstr "مدیریت شاه‌کلیدها و احراز هویت شما"
@@ -9370,11 +9436,11 @@ msgstr ""
 msgid "Marketplace"
 msgstr "فروشگاه"
 
-#: packages/admin/src/router.tsx:2875
+#: packages/admin/src/router.tsx:2881
 msgid "Marketplace browsing is no longer available."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2848
+#: packages/admin/src/router.tsx:2854
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr ""
 
@@ -9418,15 +9484,15 @@ msgstr ""
 msgid "MDX"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2012
-#: packages/admin/src/components/Settings.tsx:75
+#: packages/admin/src/components/PortableTextEditor.tsx:2013
+#: packages/admin/src/components/Settings.tsx:78
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
-#: packages/admin/src/components/Sidebar.tsx:500
+#: packages/admin/src/components/Sidebar.tsx:505
 #: packages/admin/src/components/WordPressImport.tsx:798
 #: packages/admin/src/components/WordPressImport.tsx:1196
 #: packages/admin/src/components/WordPressImport.tsx:1389
-#: packages/admin/src/router.tsx:2143
+#: packages/admin/src/router.tsx:2149
 msgid "Media"
 msgstr "رسانه"
 
@@ -9466,7 +9532,7 @@ msgstr ""
 msgid "visualEditing.mediaLibrary"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:171
+#: packages/admin/src/components/AdminCommandPalette.tsx:172
 #: packages/admin/src/components/MediaLibrary.tsx:779
 #: packages/admin/src/components/MediaLibrary.tsx:794
 msgid "Media Library"
@@ -9477,7 +9543,7 @@ msgid "Media links were made relative"
 msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:1270
-#: packages/admin/src/components/MediaPickerModal.tsx:1596
+#: packages/admin/src/components/MediaPickerModal.tsx:1600
 msgid "Media pagination"
 msgstr ""
 
@@ -9485,15 +9551,15 @@ msgstr ""
 msgid "Media Read"
 msgstr "خواندن رسانه"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1427
+#: packages/admin/src/components/MediaPickerModal.tsx:1431
 msgid "Media results"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2618
+#: packages/admin/src/router.tsx:2624
 msgid "Media Usage"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:79
+#: packages/admin/src/components/Settings.tsx:82
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:299
 msgid "Media usage tracking"
 msgstr ""
@@ -9522,7 +9588,7 @@ msgstr ""
 msgid "Media Write"
 msgstr "نوشتن رسانه"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2050
+#: packages/admin/src/components/PortableTextEditor.tsx:2051
 msgid "Medium section heading"
 msgstr "سرتیتر متوسط بخش"
 
@@ -9580,12 +9646,12 @@ msgstr "ترتیب فهرست به‌روزرسانی شد."
 msgid "Menu renamed"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:178
+#: packages/admin/src/components/AdminCommandPalette.tsx:179
 #: packages/admin/src/components/MenuList.tsx:159
 #: packages/admin/src/components/settings/transfer/labels.ts:28
-#: packages/admin/src/components/Sidebar.tsx:521
+#: packages/admin/src/components/Sidebar.tsx:526
 #: packages/admin/src/components/WordPressImport.tsx:1200
-#: packages/admin/src/router.tsx:2895
+#: packages/admin/src/router.tsx:2901
 msgid "Menus"
 msgstr "فهرستها"
 
@@ -9643,7 +9709,7 @@ msgstr "حداقل مقدار"
 msgid "Minimum blocks"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2121
+#: packages/admin/src/components/PortableTextEditor.tsx:2122
 msgid "Minor section heading"
 msgstr ""
 
@@ -9766,7 +9832,7 @@ msgstr "انتقال به پایین"
 msgid "Move the focal point to choose what stays visible in cropped images."
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:133
+#: packages/admin/src/components/Settings.tsx:136
 msgid "Move this site to another EmDash installation, or import a site package"
 msgstr ""
 
@@ -9813,7 +9879,7 @@ msgid "Moved “{snippet}”"
 msgstr ""
 
 #. placeholder {0}: to + 1
-#: packages/admin/src/components/MediaPickerModal.tsx:722
+#: packages/admin/src/components/MediaPickerModal.tsx:726
 msgid "Moved {filename} to position {0}."
 msgstr ""
 
@@ -9826,11 +9892,11 @@ msgstr ""
 msgid "Moved {name} to position {position} of {total}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:765
+#: packages/admin/src/router.tsx:771
 msgid "Moved {total} items to draft"
 msgstr ""
 
-#: packages/admin/src/router.tsx:786
+#: packages/admin/src/router.tsx:792
 msgid "Moved {total} items to trash"
 msgstr ""
 
@@ -9923,6 +9989,14 @@ msgstr "چند‌انتخابی"
 msgid "Multi-line plain text"
 msgstr "متن ساده چندخطی"
 
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:88
+msgid "Multi-site"
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:37
+msgid "Multi-site information"
+msgstr ""
+
 #: packages/admin/src/components/FieldEditor.tsx:699
 msgid "Multiple choices from options"
 msgstr "انتخاب چندگانه از گزینه‌ها"
@@ -9937,6 +10011,7 @@ msgstr "وبلاگ عالی من"
 #: packages/admin/src/components/MediaFolderDialog.tsx:169
 #: packages/admin/src/components/MenuList.tsx:220
 #: packages/admin/src/components/MenuList.tsx:223
+#: packages/admin/src/components/SitesOverview.tsx:27
 #: packages/admin/src/components/TaxonomyManager.tsx:726
 #: packages/admin/src/components/TaxonomyManager.tsx:977
 #: packages/admin/src/components/TaxonomyManager.tsx:980
@@ -9960,7 +10035,7 @@ msgstr ""
 msgid "Navigate"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:369
+#: packages/admin/src/components/AdminCommandPalette.tsx:370
 #: packages/admin/src/components/ContentTypeEditor.tsx:591
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:109
 msgid "Navigation"
@@ -9986,7 +10061,7 @@ msgstr ""
 msgid "Never"
 msgstr "هرگز"
 
-#: packages/admin/src/router.tsx:1699
+#: packages/admin/src/router.tsx:1705
 msgid "new"
 msgstr ""
 
@@ -10017,11 +10092,11 @@ msgstr ""
 msgid "New collection"
 msgstr "مجموعه جدید"
 
-#: packages/admin/src/router.tsx:894
+#: packages/admin/src/router.tsx:900
 msgid "New content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3101
+#: packages/admin/src/router.tsx:3107
 msgid "New content type"
 msgstr ""
 
@@ -10069,7 +10144,7 @@ msgstr ""
 msgid "New section"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:508
+#: packages/admin/src/components/AdminCommandPalette.tsx:509
 msgid "new tab"
 msgstr "زبانه جدید"
 
@@ -10113,7 +10188,7 @@ msgstr ""
 #: packages/admin/src/components/comments/CommentInbox.tsx:427
 #: packages/admin/src/components/ContentList.tsx:882
 #: packages/admin/src/components/ListPaginationFooter.tsx:111
-#: packages/admin/src/components/MediaPickerModal.tsx:1599
+#: packages/admin/src/components/MediaPickerModal.tsx:1603
 msgid "Next page"
 msgstr "صفحه بعدی"
 
@@ -10344,7 +10419,7 @@ msgid "No invite token provided"
 msgstr ""
 
 #: packages/admin/src/components/BlockListField.tsx:870
-#: packages/admin/src/components/PortableTextEditor.tsx:3104
+#: packages/admin/src/components/PortableTextEditor.tsx:3105
 #: packages/admin/src/components/RepeaterField.tsx:172
 #: packages/admin/src/components/settings/BackupSettings.tsx:298
 msgid "No items yet"
@@ -10414,7 +10489,7 @@ msgid "No media available from this provider."
 msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:1102
-#: packages/admin/src/components/MediaPickerModal.tsx:1457
+#: packages/admin/src/components/MediaPickerModal.tsx:1461
 msgid "No media found"
 msgstr "رسانه‌ای یافت نشد"
 
@@ -10495,7 +10570,7 @@ msgstr ""
 msgid "No relations yet."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2533
+#: packages/admin/src/components/PortableTextEditor.tsx:2534
 #: packages/admin/src/components/RepeaterField.tsx:403
 msgid "No results"
 msgstr "بدون نتایج"
@@ -10510,8 +10585,8 @@ msgstr ""
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "نتیجه‌ای برای «{debouncedQuery}» یافت نشد. عبارت جستجوی دیگری را امتحان کنید."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:494
-#: packages/admin/src/components/Settings.tsx:179
+#: packages/admin/src/components/AdminCommandPalette.tsx:495
+#: packages/admin/src/components/Settings.tsx:182
 msgid "No results found"
 msgstr "نتیجه‌ای یافت نشد"
 
@@ -10570,6 +10645,7 @@ msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
 #: packages/admin/src/components/PortableTextEditor.tsx:5602
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:178
 msgid "None"
 msgstr ""
 
@@ -10584,6 +10660,10 @@ msgstr ""
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:713
 msgid "Not compatible with this environment"
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:127
+msgid "Not configured"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:298
@@ -10648,13 +10728,17 @@ msgid "Number of posts to show per page on list views"
 msgstr "تعداد نوشته‌ها برای نمایش در هر صفحه در نمای لیستی"
 
 #: packages/admin/src/components/editor/blockTypes.ts:101
-#: packages/admin/src/components/PortableTextEditor.tsx:2064
+#: packages/admin/src/components/PortableTextEditor.tsx:2065
 #: packages/admin/src/components/PortableTextEditor.tsx:6572
 msgid "Numbered List"
 msgstr "لیست شماره‌دار"
 
 #: packages/admin/src/components/WordPressImport.tsx:542
 msgid "OAuth authorization requires HTTPS. Please use manual credentials."
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:25
+msgid "Object cache"
 msgstr ""
 
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:425
@@ -10926,21 +11010,21 @@ msgstr ""
 msgid "Package downloaded"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3419
+#: packages/admin/src/router.tsx:3425
 msgid "Page not found"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3547
+#: packages/admin/src/router.tsx:3553
 msgid "Page Not Found"
 msgstr ""
 
 #: packages/admin/src/components/ListPaginationFooter.tsx:113
-#: packages/admin/src/components/MediaPickerModal.tsx:1601
+#: packages/admin/src/components/MediaPickerModal.tsx:1605
 msgid "Page number"
 msgstr ""
 
 #: packages/admin/src/components/ListPaginationFooter.tsx:114
-#: packages/admin/src/components/MediaPickerModal.tsx:1602
+#: packages/admin/src/components/MediaPickerModal.tsx:1606
 msgid "Page size"
 msgstr ""
 
@@ -10950,7 +11034,7 @@ msgid "Pages"
 msgstr "صفحات"
 
 #: packages/admin/src/components/editor/blockTypes.ts:80
-#: packages/admin/src/components/PortableTextEditor.tsx:2042
+#: packages/admin/src/components/PortableTextEditor.tsx:2043
 msgid "Paragraph"
 msgstr "پاراگراف"
 
@@ -11064,7 +11148,7 @@ msgstr ""
 msgid "Paste an embed code or an https link…"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2765
+#: packages/admin/src/components/PortableTextEditor.tsx:2766
 msgid "Paste the address of what to embed."
 msgstr ""
 
@@ -11139,7 +11223,7 @@ msgstr "حذف دائمی «{title}»؟ این عمل قابل بازگشت نی
 msgid "Permissions"
 msgstr "مجوزها"
 
-#: packages/admin/src/components/Settings.tsx:138
+#: packages/admin/src/components/Settings.tsx:141
 msgid "Personal"
 msgstr ""
 
@@ -11199,12 +11283,12 @@ msgstr "لطفاً یک ایمیل معتبر وارد کنید"
 msgid "Please enter a valid email address"
 msgstr "لطفاً یک آدرس ایمیل معتبر وارد کنید"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:659
+#: packages/admin/src/components/MediaPickerModal.tsx:663
 msgid "Please enter a valid URL"
 msgstr "لطفاً یک آدرس معتبر وارد کنید"
 
 #: packages/admin/src/components/WordPressImport.tsx:1233
-#: packages/admin/src/router.tsx:3395
+#: packages/admin/src/router.tsx:3401
 msgid "Plugin"
 msgstr "پلاگین"
 
@@ -11216,7 +11300,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:88
+#: packages/admin/src/lib/api/client.ts:153
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr ""
 
@@ -11241,8 +11325,8 @@ msgstr ""
 msgid "Plugin details"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2820
-#: packages/admin/src/router.tsx:2827
+#: packages/admin/src/router.tsx:2826
+#: packages/admin/src/router.tsx:2833
 msgid "Plugin Details"
 msgstr ""
 
@@ -11267,7 +11351,7 @@ msgstr ""
 msgid "Plugin installation requires explicit consent"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2812
+#: packages/admin/src/router.tsx:2818
 msgid "Plugin Marketplace"
 msgstr ""
 
@@ -11307,7 +11391,7 @@ msgid "Plugin Permissions"
 msgstr "مجوزهای افزونه"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
-#: packages/admin/src/router.tsx:2769
+#: packages/admin/src/router.tsx:2775
 msgid "Plugin Registry"
 msgstr ""
 
@@ -11316,8 +11400,8 @@ msgstr ""
 msgid "Plugin registry configuration error"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2805
-#: packages/admin/src/router.tsx:2839
+#: packages/admin/src/router.tsx:2811
+#: packages/admin/src/router.tsx:2845
 msgid "Plugin registry is not configured."
 msgstr ""
 
@@ -11326,7 +11410,7 @@ msgstr ""
 msgid "Plugin responded with {0}: {text}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3382
+#: packages/admin/src/router.tsx:3388
 msgid "Plugin Settings"
 msgstr ""
 
@@ -11353,13 +11437,13 @@ msgstr "افزونه به‌روزرسانی شد"
 msgid "Plugin widget error"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:236
+#: packages/admin/src/components/AdminCommandPalette.tsx:237
 #: packages/admin/src/components/PluginManager.tsx:182
 #: packages/admin/src/components/PluginManager.tsx:191
 #: packages/admin/src/components/PluginManager.tsx:201
-#: packages/admin/src/components/Sidebar.tsx:461
-#: packages/admin/src/components/Sidebar.tsx:587
-#: packages/admin/src/router.tsx:2754
+#: packages/admin/src/components/Sidebar.tsx:466
+#: packages/admin/src/components/Sidebar.tsx:592
+#: packages/admin/src/router.tsx:2760
 msgid "Plugins"
 msgstr "پلاگین‌ها"
 
@@ -11490,7 +11574,7 @@ msgstr ""
 #: packages/admin/src/components/comments/CommentInbox.tsx:408
 #: packages/admin/src/components/ContentList.tsx:870
 #: packages/admin/src/components/ListPaginationFooter.tsx:110
-#: packages/admin/src/components/MediaPickerModal.tsx:1598
+#: packages/admin/src/components/MediaPickerModal.tsx:1602
 msgid "Previous page"
 msgstr "صفحه قبلی"
 
@@ -11606,7 +11690,7 @@ msgstr ""
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
-#: packages/admin/src/router.tsx:1560
+#: packages/admin/src/router.tsx:1566
 msgid "Published"
 msgstr "منتشرشده"
 
@@ -11619,7 +11703,7 @@ msgstr "منتشرشده در {0}"
 msgid "Published {liveSince}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:742
+#: packages/admin/src/router.tsx:748
 msgid "Published {total} items"
 msgstr ""
 
@@ -11681,7 +11765,7 @@ msgid "Quick create names the relationship after this field and this collection,
 msgstr ""
 
 #: packages/admin/src/components/editor/blockTypes.ts:109
-#: packages/admin/src/components/PortableTextEditor.tsx:2074
+#: packages/admin/src/components/PortableTextEditor.tsx:2075
 #: packages/admin/src/components/PortableTextEditor.tsx:3623
 #: packages/admin/src/components/PortableTextEditor.tsx:6598
 msgid "Quote"
@@ -11759,7 +11843,7 @@ msgid "Read your taxonomies and terms"
 msgstr ""
 
 #: packages/admin/src/components/EntryLockNotice.tsx:78
-#: packages/admin/src/router.tsx:2115
+#: packages/admin/src/router.tsx:2121
 msgid "Read-only"
 msgstr ""
 
@@ -11847,10 +11931,11 @@ msgstr "در حال هدایت به صفحه ورود..."
 
 #: packages/admin/src/components/Redirects.tsx:672
 #: packages/admin/src/components/Redirects.tsx:731
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:24
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
-#: packages/admin/src/components/Sidebar.tsx:528
-#: packages/admin/src/router.tsx:2937
+#: packages/admin/src/components/Sidebar.tsx:533
+#: packages/admin/src/router.tsx:2943
 msgid "Redirects"
 msgstr "تغییر مسیر‌ها"
 
@@ -11878,6 +11963,10 @@ msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:518
 msgid "Referenced favicon unavailable."
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:47
+msgid "Refresh"
 msgstr ""
 
 #. js-lingui-explicit-id
@@ -11920,7 +12009,7 @@ msgstr "ثبت‌نام لغو شد یا زمان آن به پایان رسید.
 
 #: packages/admin/src/components/PluginManager.tsx:219
 #: packages/admin/src/components/PluginManager.tsx:464
-#: packages/admin/src/components/Sidebar.tsx:596
+#: packages/admin/src/components/Sidebar.tsx:601
 msgid "Registry"
 msgstr ""
 
@@ -11929,7 +12018,7 @@ msgstr ""
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
-#: packages/admin/src/router.tsx:3137
+#: packages/admin/src/router.tsx:3143
 msgid "Relations"
 msgstr ""
 
@@ -11969,8 +12058,8 @@ msgstr ""
 msgid "visualEditing.removeImage"
 msgstr ""
 
-#: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
-#: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:88
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:119
 #: packages/admin/src/components/ContentEditor.tsx:4302
 #: packages/admin/src/components/ContentEditor.tsx:4368
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
@@ -12055,7 +12144,7 @@ msgid "Remove image?"
 msgstr ""
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:3220
+#: packages/admin/src/components/PortableTextEditor.tsx:3221
 #: packages/admin/src/components/RepeaterField.tsx:288
 msgid "Remove item {0}"
 msgstr "حذف مورد {0}"
@@ -12096,7 +12185,7 @@ msgid "Removed “{snippet}”"
 msgstr ""
 
 #. placeholder {0}: selected.item.filename
-#: packages/admin/src/components/MediaPickerModal.tsx:727
+#: packages/admin/src/components/MediaPickerModal.tsx:731
 msgid "Removed {0} from selection."
 msgstr ""
 
@@ -12345,7 +12434,7 @@ msgstr "مخزن"
 msgid "Request a new link"
 msgstr "درخواست لینک جدید"
 
-#: packages/admin/src/lib/api/client.ts:368
+#: packages/admin/src/lib/api/client.ts:438
 msgid "Request failed"
 msgstr ""
 
@@ -12515,17 +12604,17 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:1558
 #: packages/admin/src/components/MediaLibrary.tsx:981
 #: packages/admin/src/components/MediaLibrary.tsx:1495
-#: packages/admin/src/components/MediaPickerModal.tsx:1259
-#: packages/admin/src/components/MediaPickerModal.tsx:1355
-#: packages/admin/src/components/MediaPickerModal.tsx:1377
-#: packages/admin/src/components/MediaPickerModal.tsx:1450
+#: packages/admin/src/components/MediaPickerModal.tsx:1263
+#: packages/admin/src/components/MediaPickerModal.tsx:1359
+#: packages/admin/src/components/MediaPickerModal.tsx:1381
+#: packages/admin/src/components/MediaPickerModal.tsx:1454
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:401
 #: packages/admin/src/components/Sections.tsx:352
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:92
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:276
-#: packages/admin/src/router.tsx:3535
+#: packages/admin/src/router.tsx:3541
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12576,7 +12665,7 @@ msgstr ""
 msgid "Reusable content blocks you can insert into any content"
 msgstr "بلوک‌های محتوای قابل استفاده مجدد که می‌توانید در هر محتوایی درج کنید"
 
-#: packages/admin/src/router.tsx:1608
+#: packages/admin/src/router.tsx:1614
 msgid "Reverted to published version"
 msgstr ""
 
@@ -12712,6 +12801,10 @@ msgstr ""
 msgid "Roles"
 msgstr ""
 
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:73
+msgid "root (no active site)"
+msgstr ""
+
 #: packages/admin/src/components/ContentTypeEditor.tsx:544
 msgid "Routable"
 msgstr ""
@@ -12749,6 +12842,18 @@ msgstr ""
 msgid "Runs HTML, CSS and JavaScript in a sandbox."
 msgstr ""
 
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:109
+msgid "Runtime initialized"
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:109
+msgid "Runtime uninitialized"
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:38
+msgid "Runtime, database, storage, and cache isolation state for configured sites"
+msgstr ""
+
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:50
 msgid "Rust"
 msgstr ""
@@ -12776,7 +12881,7 @@ msgstr ""
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
-#: packages/admin/src/components/PortableTextEditor.tsx:2820
+#: packages/admin/src/components/PortableTextEditor.tsx:2821
 #: packages/admin/src/components/Redirects.tsx:313
 #: packages/admin/src/components/SaveButton.tsx:38
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
@@ -12948,7 +13053,7 @@ msgstr ""
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:421
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1655
+#: packages/admin/src/router.tsx:1661
 msgid "Scheduled"
 msgstr "زمان‌بندی‌شده"
 
@@ -13037,8 +13142,8 @@ msgid "SCSS"
 msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:110
-#: packages/admin/src/components/Settings.tsx:178
-#: packages/admin/src/components/Settings.tsx:178
+#: packages/admin/src/components/Settings.tsx:181
+#: packages/admin/src/components/Settings.tsx:181
 #: packages/admin/src/components/Widgets.tsx:167
 msgid "Search"
 msgstr "جستجو"
@@ -13070,7 +13175,7 @@ msgid "Search blocks"
 msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:926
-#: packages/admin/src/components/MediaPickerModal.tsx:1306
+#: packages/admin/src/components/MediaPickerModal.tsx:1310
 msgid "Search by filename..."
 msgstr ""
 
@@ -13109,7 +13214,7 @@ msgstr "جستجوی محتوا..."
 msgid "Search Engine Optimization"
 msgstr "بهینه‌سازی موتور جستجو"
 
-#: packages/admin/src/components/Settings.tsx:69
+#: packages/admin/src/components/Settings.tsx:72
 #: packages/admin/src/components/settings/SeoSettings.tsx:127
 msgid "Search engine optimization and verification"
 msgstr "بهینه‌سازی موتور جستجو و تأیید"
@@ -13148,7 +13253,7 @@ msgid "Search form"
 msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:927
-#: packages/admin/src/components/MediaPickerModal.tsx:1308
+#: packages/admin/src/components/MediaPickerModal.tsx:1312
 msgid "Search media"
 msgstr "جستجوی رسانه"
 
@@ -13165,7 +13270,7 @@ msgstr ""
 msgid "Search or type a URL"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:467
+#: packages/admin/src/components/AdminCommandPalette.tsx:468
 msgid "Search pages and content..."
 msgstr "جستجوی صفحات و محتوا..."
 
@@ -13225,7 +13330,7 @@ msgid "Search will be turned off for some collections"
 msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:926
-#: packages/admin/src/components/MediaPickerModal.tsx:1306
+#: packages/admin/src/components/MediaPickerModal.tsx:1310
 msgid "Search..."
 msgstr "جستجو…"
 
@@ -13237,6 +13342,10 @@ msgstr "قابل جستجو"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:362
 #: packages/admin/src/components/BylineCreditsEditor.tsx:451
 msgid "Searching…"
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:18
+msgid "Secrets"
 msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3889
@@ -13267,12 +13376,12 @@ msgstr "بخش یافت نشد"
 msgid "Section title"
 msgstr "عنوان بخش"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:194
+#: packages/admin/src/components/AdminCommandPalette.tsx:195
 #: packages/admin/src/components/Sections.tsx:218
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
-#: packages/admin/src/components/Sidebar.tsx:542
-#: packages/admin/src/router.tsx:2944
+#: packages/admin/src/components/Sidebar.tsx:547
+#: packages/admin/src/router.tsx:2950
 msgid "Sections"
 msgstr "بخش‌ها"
 
@@ -13285,7 +13394,7 @@ msgid "Secure your account"
 msgstr "حساب کاربری خود را ایمن کنید"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:913
-#: packages/admin/src/components/Settings.tsx:90
+#: packages/admin/src/components/Settings.tsx:93
 #: packages/admin/src/components/settings/EmailSettings.tsx:261
 #: packages/admin/src/components/settings/EmailSettings.tsx:350
 msgid "Security"
@@ -13324,12 +13433,12 @@ msgstr ""
 msgid "Security error. Make sure you're on a secure connection."
 msgstr "خطای امنیتی. مطمئن شوید که روی یک اتصال امن هستید."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:268
+#: packages/admin/src/components/AdminCommandPalette.tsx:269
 #: packages/admin/src/components/Header.tsx:109
-#: packages/admin/src/components/Settings.tsx:86
+#: packages/admin/src/components/Settings.tsx:89
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
-#: packages/admin/src/router.tsx:2626
+#: packages/admin/src/router.tsx:2632
 msgid "Security Settings"
 msgstr "تنظیمات امنیتی"
 
@@ -13340,12 +13449,12 @@ msgstr ""
 #: packages/admin/src/components/BylineFieldEditor.tsx:59
 #: packages/admin/src/components/FieldEditor.tsx:692
 #: packages/admin/src/components/FieldEditor.tsx:1700
-#: packages/admin/src/components/MediaPickerModal.tsx:891
-#: packages/admin/src/components/Settings.tsx:172
+#: packages/admin/src/components/MediaPickerModal.tsx:895
+#: packages/admin/src/components/Settings.tsx:175
 msgid "Select"
 msgstr "انتخاب"
 
-#: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:144
 #: packages/admin/src/components/ContentEditor.tsx:4256
 #: packages/admin/src/components/ContentEditor.tsx:4317
 #: packages/admin/src/components/ContentEditor.tsx:4378
@@ -13432,7 +13541,7 @@ msgstr "انتخاب فاوآیکون"
 
 #: packages/admin/src/components/ContentEditor.tsx:4319
 #: packages/admin/src/components/ContentEditor.tsx:4384
-#: packages/admin/src/components/MediaPickerModal.tsx:237
+#: packages/admin/src/components/MediaPickerModal.tsx:241
 msgid "Select file"
 msgstr ""
 
@@ -13443,7 +13552,7 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:655
 #: packages/admin/src/components/ImageFieldRenderer.tsx:821
 #: packages/admin/src/components/ImageFieldRenderer.tsx:964
-#: packages/admin/src/components/MediaPickerModal.tsx:237
+#: packages/admin/src/components/MediaPickerModal.tsx:241
 #: packages/admin/src/components/PortableTextEditor.tsx:4875
 msgid "Select image"
 msgstr "انتخاب تصویر"
@@ -13460,7 +13569,7 @@ msgstr ""
 msgid "Select Logo"
 msgstr "انتخاب لوگو"
 
-#: packages/admin/src/components/BlockKitMediaPickerField.tsx:134
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:135
 msgid "Select media"
 msgstr ""
 
@@ -13476,7 +13585,7 @@ msgstr ""
 msgid "Select up to 50 posts at a time."
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:237
+#: packages/admin/src/components/MediaPickerModal.tsx:241
 #: packages/admin/src/components/PortableTextEditor.tsx:4889
 msgid "Select video"
 msgstr ""
@@ -13495,7 +13604,7 @@ msgstr "انتخاب…"
 msgid "Selected {label}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2524
+#: packages/admin/src/components/PortableTextEditor.tsx:2525
 msgid "Selected {selectedItemTitle}"
 msgstr ""
 
@@ -13505,7 +13614,7 @@ msgstr ""
 msgid "Selected image"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:988
+#: packages/admin/src/components/MediaPickerModal.tsx:992
 msgid "Selected media"
 msgstr ""
 
@@ -13517,7 +13626,7 @@ msgstr ""
 msgid "Selection"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:97
+#: packages/admin/src/components/Settings.tsx:100
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:219
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:241
 msgid "Self-Signup Domains"
@@ -13583,7 +13692,7 @@ msgstr "در حال ارسال..."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1206
 #: packages/admin/src/components/ContentTypeEditor.tsx:700
-#: packages/admin/src/components/Settings.tsx:68
+#: packages/admin/src/components/Settings.tsx:71
 #: packages/admin/src/lib/editor-sections.ts:37
 msgid "SEO"
 msgstr "سئو"
@@ -13595,7 +13704,7 @@ msgid "SEO settings"
 msgstr ""
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
-#: packages/admin/src/router.tsx:2746
+#: packages/admin/src/router.tsx:2752
 msgid "SEO Settings"
 msgstr "تنظیمات سئو"
 
@@ -13667,16 +13776,17 @@ msgstr ""
 msgid "Setting up..."
 msgstr "در حال راه‌اندازی..."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:252
+#: packages/admin/src/components/AdminCommandPalette.tsx:253
 #: packages/admin/src/components/ContentEditor.tsx:2367
 #: packages/admin/src/components/ContentEditor.tsx:2772
 #: packages/admin/src/components/ContentTypeEditor.tsx:496
 #: packages/admin/src/components/Header.tsx:117
 #: packages/admin/src/components/PluginManager.tsx:547
-#: packages/admin/src/components/Settings.tsx:47
-#: packages/admin/src/components/Sidebar.tsx:610
+#: packages/admin/src/components/Settings.tsx:48
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:19
+#: packages/admin/src/components/Sidebar.tsx:615
 #: packages/admin/src/components/WordPressImport.tsx:1860
-#: packages/admin/src/router.tsx:2611
+#: packages/admin/src/router.tsx:2617
 msgid "Settings"
 msgstr "تنظیمات"
 
@@ -13693,7 +13803,7 @@ msgstr ""
 msgid "Settings saved successfully"
 msgstr "تنظیمات با موفقیت ذخیره شد"
 
-#: packages/admin/src/router.tsx:422
+#: packages/admin/src/router.tsx:424
 msgid "Setup"
 msgstr ""
 
@@ -13704,6 +13814,14 @@ msgstr ""
 #: packages/admin/src/components/SetupWizard.tsx:524
 #: packages/admin/src/components/SetupWizard.tsx:527
 msgid "Setup failed"
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:118
+msgid "Setup unverified"
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:118
+msgid "Setup verified"
 msgstr ""
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:156
@@ -13771,7 +13889,7 @@ msgstr "نمایش توکن"
 #. placeholder {0}: count ?? 0
 #. placeholder {0}: totalCount ?? 0
 #: packages/admin/src/components/ListPaginationFooter.tsx:119
-#: packages/admin/src/components/MediaPickerModal.tsx:1607
+#: packages/admin/src/components/MediaPickerModal.tsx:1611
 msgid "Showing {pageShowingRange} of {0}"
 msgstr ""
 
@@ -13792,7 +13910,7 @@ msgstr "هنگام قرارگیری ماوس روی تصویر نمایش داد
 msgid "Shows a button for creating a new entry"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:142
+#: packages/admin/src/components/Settings.tsx:145
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:80
 msgid "Sidebars"
 msgstr ""
@@ -13846,7 +13964,7 @@ msgstr "ورود با شاه‌کلید"
 msgid "Sign in with your Bluesky/Atmosphere handle"
 msgstr ""
 
-#: packages/admin/src/router.tsx:462
+#: packages/admin/src/router.tsx:464
 msgid "Sign up"
 msgstr ""
 
@@ -13879,7 +13997,11 @@ msgstr "انتخاب تکی از گزینه‌ها"
 msgid "Single line text input"
 msgstr "ورودی متن تک‌خطی"
 
-#: packages/admin/src/components/Settings.tsx:52
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:88
+msgid "Single-site"
+msgstr ""
+
+#: packages/admin/src/components/Settings.tsx:55
 #: packages/admin/src/components/SetupWizard.tsx:409
 msgid "Site"
 msgstr "وبسایت"
@@ -13900,7 +14022,7 @@ msgstr "هویت وبسایت"
 msgid "site identity applied (title, tagline, logo)"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:57
+#: packages/admin/src/components/Settings.tsx:60
 #: packages/admin/src/components/settings/GeneralSettings.tsx:308
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "هویت وبسایت، لوگو، فاوآیکون و ترجیحات خواندن"
@@ -13952,7 +14074,7 @@ msgstr "عنوان وبسایت و شعار"
 msgid "Site title is required"
 msgstr "عنوان وبسایت الزامی است"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:260
+#: packages/admin/src/components/AdminCommandPalette.tsx:261
 msgid "Site Transfer"
 msgstr ""
 
@@ -13966,6 +14088,11 @@ msgstr ""
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:149
 msgid "Sitemaps and absolute URLs in search and social metadata will use the new domain. Links in emails and plugins keep using {configuredUrl}, set by the deployment configuration."
+msgstr ""
+
+#: packages/admin/src/components/Shell.tsx:90
+#: packages/admin/src/components/SitesOverview.tsx:21
+msgid "Sites"
 msgstr ""
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:347
@@ -14031,15 +14158,15 @@ msgstr "نامک در کلیپ‌بورد کپی شد"
 msgid "Slugs cannot be changed after the field is created."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2051
+#: packages/admin/src/components/PortableTextEditor.tsx:2052
 msgid "Small section heading"
 msgstr "سرتیتر کوچک بخش"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2120
+#: packages/admin/src/components/PortableTextEditor.tsx:2121
 msgid "Smaller section heading"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2122
+#: packages/admin/src/components/PortableTextEditor.tsx:2123
 msgid "Smallest section heading"
 msgstr ""
 
@@ -14068,7 +14195,7 @@ msgstr ""
 msgid "smtp.example.com"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:62
+#: packages/admin/src/components/Settings.tsx:65
 #: packages/admin/src/components/settings/SocialSettings.tsx:89
 msgid "Social Links"
 msgstr "لینک‌های اجتماعی"
@@ -14077,7 +14204,7 @@ msgstr "لینک‌های اجتماعی"
 msgid "Social links saved"
 msgstr "لینک‌های اجتماعی ذخیره شد"
 
-#: packages/admin/src/components/Settings.tsx:63
+#: packages/admin/src/components/Settings.tsx:66
 #: packages/admin/src/components/settings/SocialSettings.tsx:90
 msgid "Social media profile links"
 msgstr "لینک‌های پروفایل شبکه‌های اجتماعی"
@@ -14086,7 +14213,7 @@ msgstr "لینک‌های پروفایل شبکه‌های اجتماعی"
 msgid "Social Profiles"
 msgstr "پروفایل‌های اجتماعی"
 
-#: packages/admin/src/router.tsx:2734
+#: packages/admin/src/router.tsx:2740
 msgid "Social Settings"
 msgstr ""
 
@@ -14244,7 +14371,7 @@ msgstr ""
 msgid "Start with the template’s example posts and pages. Recommended for new sites."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2043
+#: packages/admin/src/components/PortableTextEditor.tsx:2044
 msgid "Start writing with plain text"
 msgstr ""
 
@@ -14314,6 +14441,18 @@ msgstr ""
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:294
 msgid "Stopping the import"
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:136
+msgid "Storage"
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:115
+msgid "Storage ready"
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:115
+msgid "Storage uninitialized"
 msgstr ""
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:220
@@ -14387,6 +14526,11 @@ msgstr ""
 msgid "Switch back to staging"
 msgstr ""
 
+#. placeholder {0}: activeSite.name
+#: packages/admin/src/components/Sidebar.tsx:878
+msgid "Switch site: {0}"
+msgstr ""
+
 #: packages/admin/src/components/ThemeToggle.tsx:19
 msgid "Switch to dark"
 msgstr ""
@@ -14414,7 +14558,7 @@ msgstr ""
 #: packages/admin/src/components/editor/BlockMenu.tsx:45
 #: packages/admin/src/components/editor/TableControls.tsx:31
 #: packages/admin/src/components/editor/TableControls.tsx:368
-#: packages/admin/src/components/PortableTextEditor.tsx:2112
+#: packages/admin/src/components/PortableTextEditor.tsx:2113
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:505
 msgid "Table"
 msgstr ""
@@ -14450,7 +14594,7 @@ msgstr ""
 msgid "Tagline"
 msgstr "شعار"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:219
+#: packages/admin/src/components/AdminCommandPalette.tsx:220
 #: packages/admin/src/components/Widgets.tsx:159
 msgid "Tags"
 msgstr "برچسب‌ها"
@@ -14482,7 +14626,7 @@ msgstr ""
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:907
 #: packages/admin/src/lib/editor-sections.ts:36
-#: packages/admin/src/router.tsx:2915
+#: packages/admin/src/router.tsx:2921
 msgid "Taxonomies"
 msgstr "دسته‌بندی‌ها"
 
@@ -14502,6 +14646,10 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:1442
 msgid "Taxonomy created"
 msgstr "دسته‌بندی ساخته شد"
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:21
+msgid "Taxonomy defs"
+msgstr ""
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1114
 msgid "Taxonomy deleted"
@@ -14767,7 +14915,7 @@ msgstr "کاربر دعوت‌شده پس از تکمیل ثبت‌نام این
 msgid "The last export failed"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1349
+#: packages/admin/src/components/MediaPickerModal.tsx:1353
 msgid "The latest media request failed. Showing the previous page."
 msgstr ""
 
@@ -14877,7 +15025,7 @@ msgstr ""
 msgid "The package’s file index is not valid."
 msgstr ""
 
-#: packages/admin/src/router.tsx:3549
+#: packages/admin/src/router.tsx:3555
 msgid "The page you're looking for doesn't exist."
 msgstr ""
 
@@ -15024,7 +15172,7 @@ msgstr "پوسته"
 msgid "Theme \"{id}\" not found"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2866
+#: packages/admin/src/router.tsx:2872
 msgid "Theme Details"
 msgstr ""
 
@@ -15033,7 +15181,7 @@ msgstr ""
 msgid "Theme ID: {0}"
 msgstr "شناسه قالب: {0}"
 
-#: packages/admin/src/router.tsx:2858
+#: packages/admin/src/router.tsx:2864
 msgid "Theme Marketplace"
 msgstr ""
 
@@ -15149,15 +15297,15 @@ msgid "This entry changed somewhere else after you opened it."
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:1738
-#: packages/admin/src/router.tsx:1191
+#: packages/admin/src/router.tsx:1197
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2046
+#: packages/admin/src/router.tsx:2052
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2047
+#: packages/admin/src/router.tsx:2053
 msgid "This entry doesn't exist or was deleted."
 msgstr ""
 
@@ -15200,7 +15348,7 @@ msgstr ""
 msgid "This field does not accept {0} files."
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:672
+#: packages/admin/src/components/MediaPickerModal.tsx:676
 msgid "This field does not accept {mimeType} files."
 msgstr ""
 
@@ -15247,7 +15395,7 @@ msgstr ""
 msgid "This folder is empty"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1462
+#: packages/admin/src/components/MediaPickerModal.tsx:1466
 msgid "This folder is empty."
 msgstr ""
 
@@ -15556,7 +15704,7 @@ msgstr "عنوان (راهنما)"
 msgid "Title Separator"
 msgstr "جداکننده عنوان"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:512
+#: packages/admin/src/components/AdminCommandPalette.tsx:513
 msgid "to close"
 msgstr "برای بستن"
 
@@ -15568,7 +15716,7 @@ msgstr ""
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:502
+#: packages/admin/src/components/AdminCommandPalette.tsx:503
 msgid "to select"
 msgstr "برای انتخاب"
 
@@ -15629,7 +15777,7 @@ msgstr ""
 msgid "Track content history"
 msgstr "پیگیری تاریخچه محتوا"
 
-#: packages/admin/src/components/Settings.tsx:80
+#: packages/admin/src/components/Settings.tsx:83
 msgid "Track where media is used across your content"
 msgstr ""
 
@@ -15637,10 +15785,10 @@ msgstr ""
 msgid "Track where media is used across your content."
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:132
+#: packages/admin/src/components/Settings.tsx:135
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
-#: packages/admin/src/router.tsx:2690
+#: packages/admin/src/router.tsx:2696
 msgid "Transfer"
 msgstr ""
 
@@ -15669,7 +15817,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:787
-#: packages/admin/src/router.tsx:1698
+#: packages/admin/src/router.tsx:1704
 msgid "Translation created"
 msgstr ""
 
@@ -15761,7 +15909,7 @@ msgid "Try another code"
 msgstr "کد دیگری را امتحان کنید"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1081
-#: packages/admin/src/components/MediaPickerModal.tsx:1460
+#: packages/admin/src/components/MediaPickerModal.tsx:1464
 msgid "Try another filename or clear your search."
 msgstr ""
 
@@ -15857,7 +16005,7 @@ msgstr ""
 msgid "Type mismatch ({0})"
 msgstr "عدم تطابق نوع ({0})"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2592
+#: packages/admin/src/components/PortableTextEditor.tsx:2593
 msgid "Type to filter"
 msgstr ""
 
@@ -15956,7 +16104,7 @@ msgstr ""
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1584
+#: packages/admin/src/router.tsx:1590
 msgid "Unpublished"
 msgstr ""
 
@@ -15986,7 +16134,7 @@ msgstr ""
 msgid "Unsaved content may leave your site"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1666
+#: packages/admin/src/router.tsx:1672
 msgid "Unscheduled"
 msgstr ""
 
@@ -16124,11 +16272,11 @@ msgstr ""
 msgid "Upload"
 msgstr "بارگذاری"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1464
+#: packages/admin/src/components/MediaPickerModal.tsx:1468
 msgid "Upload a file to get started"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1466
+#: packages/admin/src/components/MediaPickerModal.tsx:1470
 msgid "Upload a video to get started"
 msgstr ""
 
@@ -16136,7 +16284,7 @@ msgstr ""
 msgid "Upload an export file"
 msgstr "بارگذاری فایل برون‌ریزی"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1467
+#: packages/admin/src/components/MediaPickerModal.tsx:1471
 msgid "Upload an image to get started"
 msgstr "یک تصویر بارگذاری کنید تا شروع شود"
 
@@ -16159,7 +16307,7 @@ msgstr "بارگذاری فایل برون‌ریزی"
 msgid "Upload failed"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1126
+#: packages/admin/src/components/MediaPickerModal.tsx:1130
 msgid "Upload files"
 msgstr ""
 
@@ -16249,7 +16397,7 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:1701
 #: packages/admin/src/components/MenuEditor.tsx:636
 #: packages/admin/src/components/MenuEditor.tsx:857
-#: packages/admin/src/components/PortableTextEditor.tsx:2805
+#: packages/admin/src/components/PortableTextEditor.tsx:2806
 #: packages/admin/src/components/PortableTextEditor.tsx:3801
 msgid "URL"
 msgstr "URL"
@@ -16261,6 +16409,10 @@ msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:569
 msgid "URL Pattern"
+msgstr ""
+
+#: packages/admin/src/components/settings/MultisiteInfoSection.tsx:23
+msgid "URL patterns"
 msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:147
@@ -16342,7 +16494,7 @@ msgstr ""
 msgid "Use a security key"
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:668
+#: packages/admin/src/components/MediaPickerModal.tsx:672
 msgid "Use a URL ending in a recognized image extension, such as .jpg or .png."
 msgstr ""
 
@@ -16372,7 +16524,7 @@ msgstr ""
 msgid "Use lowercase letters, numbers, and underscores, starting with a letter."
 msgstr ""
 
-#: packages/admin/src/components/MediaPickerModal.tsx:1191
+#: packages/admin/src/components/MediaPickerModal.tsx:1195
 msgid "Use URL"
 msgstr ""
 
@@ -16451,10 +16603,10 @@ msgstr ""
 msgid "Username"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:228
-#: packages/admin/src/components/Sidebar.tsx:584
+#: packages/admin/src/components/AdminCommandPalette.tsx:229
+#: packages/admin/src/components/Sidebar.tsx:589
 #: packages/admin/src/components/users/UserList.tsx:63
-#: packages/admin/src/router.tsx:2963
+#: packages/admin/src/router.tsx:2969
 msgid "Users"
 msgstr "کاربران"
 
@@ -16555,7 +16707,7 @@ msgstr ""
 #: packages/admin/src/components/AllowedTypesEditor.tsx:99
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
 #: packages/admin/src/components/MediaLibrary.tsx:946
-#: packages/admin/src/components/MediaPickerModal.tsx:407
+#: packages/admin/src/components/MediaPickerModal.tsx:411
 #: packages/admin/src/components/PortableTextEditor.tsx:3875
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:485
 msgid "Video"
@@ -16574,7 +16726,7 @@ msgstr ""
 msgid "Video upload failed. Try again."
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:121
+#: packages/admin/src/components/Settings.tsx:124
 msgid "View email provider status and send test emails"
 msgstr "مشاهده وضعیت ارائه‌دهنده ایمیل و ارسال ایمیل‌های آزمایشی"
 
@@ -16583,7 +16735,7 @@ msgid "View live"
 msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:892
-#: packages/admin/src/components/MediaPickerModal.tsx:1266
+#: packages/admin/src/components/MediaPickerModal.tsx:1270
 msgid "View mode"
 msgstr "حالت نمایش"
 
@@ -16868,14 +17020,14 @@ msgstr ""
 msgid "Widget updated"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:186
+#: packages/admin/src/components/AdminCommandPalette.tsx:187
 #: packages/admin/src/components/PluginManager.tsx:495
 #: packages/admin/src/components/settings/transfer/labels.ts:31
 #: packages/admin/src/components/settings/transfer/labels.ts:91
-#: packages/admin/src/components/Sidebar.tsx:535
+#: packages/admin/src/components/Sidebar.tsx:540
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1208
-#: packages/admin/src/router.tsx:2929
+#: packages/admin/src/router.tsx:2935
 msgid "Widgets"
 msgstr "ابزارک‌ها"
 
@@ -17048,7 +17200,7 @@ msgstr ""
 msgid "You need admin permissions to view this page."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2567
+#: packages/admin/src/router.tsx:2573
 msgid "You need Editor permissions to moderate comments."
 msgstr ""
 
@@ -17190,11 +17342,11 @@ msgstr "نام شما (اختیاری)"
 msgid "Your Role"
 msgstr "نقش شما"
 
-#: packages/admin/src/router.tsx:2120
+#: packages/admin/src/router.tsx:2126
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2121
+#: packages/admin/src/router.tsx:2127
 msgid "Your role can't edit this entry."
 msgstr ""
 

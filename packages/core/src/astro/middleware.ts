@@ -92,7 +92,7 @@ import {
 	createPublicPluginApiRouteHandler,
 	getPublicPluginRouteMeta,
 } from "./public-plugin-api-routes.js";
-import { getRuntimeHolder, getRuntimeSlot } from "./runtime-holder.js";
+import { evictCachedDb, getRuntimeHolder, getRuntimeSlot } from "./runtime-holder.js";
 import { resolveSessionUser } from "./session-user.js";
 import {
 	findConfiguredSite,
@@ -400,6 +400,7 @@ async function getAdminDb(
 				dbCacheKey: config.sites?.length ? "admin" : "default",
 			});
 			if (holder.closed) {
+				evictCachedDb(db);
 				await db.destroy().catch(() => {});
 				throw new Error("EmDash dev server has closed");
 			}

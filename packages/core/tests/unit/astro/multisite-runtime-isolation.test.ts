@@ -158,6 +158,56 @@ describe("multi-site runtime isolation", () => {
 		expect(purpleTerminate).toHaveBeenCalledOnce();
 		expect(holder.slots.size).toBe(0);
 		expect(holder.adminDb).toBeNull();
+		expect(dbHolder.cache.has("admin")).toBe(false);
+	});
+
+	it("evicts destroyed adminDb from DbHolder so re-initializing after shutdownRuntime returns a live driver", async () => {
+		const dbPath = join(tempDir, "admin-reinit.db");
+		const adminDeps = {
+			config: {
+				database: {
+					type: "sqlite" as const,
+					entrypoint: "@emdash-cms/core/db/sqlite",
+					config: { url: dbPath },
+				},
+			},
+			createDialect: (cfg: Record<string, unknown>) => createDialect(cfg as { url: string }),
+			migrationMode: "auto" as const,
+			dbCacheKey: "admin",
+		};
+
+		const firstAdminDb = await EmDashRuntime.getOrInitDatabase(adminDeps);
+		getRuntimeHolder().adminDb = firstAdminDb;
+
+		await shutdownRuntime();
+
+		const nextAdminDb = await EmDashRuntime.getOrInitDatabase(adminDeps);
+		expect(nextAdminDb).not.toBe(firstAdminDb);
+
+		const siteRuntime = await EmDashRuntime.create({
+			siteId: "orange",
+			dbCacheKey: "site:orange",
+			adminDb: nextAdminDb,
+			config: {
+				database: {
+					type: "sqlite",
+					entrypoint: "@emdash-cms/core/db/sqlite",
+					config: { url: join(tempDir, "orange-reinit.db") },
+				},
+			},
+			migrationMode: "auto",
+			plugins: [],
+			sandboxedPluginEntries: [],
+			sandboxEnabled: false,
+			createSandboxRunner: null,
+			createDialect: (cfg) => createDialect(cfg as { url: string }),
+			createStorage: null,
+		});
+
+		await expect(siteRuntime.adminDb.selectFrom("users").select("id").execute()).resolves.toEqual(
+			[],
+		);
+		await nextAdminDb.destroy().catch(() => {});
 	});
 
 	it("prefers ALS ctx.storage over instance _storage when ctx.storage is set", async () => {

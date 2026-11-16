@@ -24,6 +24,7 @@ import {
 	type NavEntry,
 	type NavFolder,
 } from "../lib/sidebar-groups.js";
+import { ADMIN_BASEPATH, getActiveAdminSiteId, getAdminBasepath } from "../lib/site-path.js";
 import {
 	resolveTaxonomyDefinitions,
 	type LocalizedTaxonomyDefinition,
@@ -681,6 +682,8 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		new URL(location.href, "http://emdash.local").searchParams.get("locale") ?? undefined;
 	const pluginAdmins = usePluginAdmins();
 	const layout = useAdminLayout();
+	const activeSiteId = getActiveAdminSiteId();
+	const isMultiSiteRoot = Boolean(manifest.sites?.length) && !activeSiteId;
 
 	const { data: user } = useCurrentUser();
 	const role = user?.role ?? 0;
@@ -691,25 +694,40 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		queryFn: fetchCommentCounts,
 		staleTime: 60 * 1000,
 		retry: false,
-		enabled: role >= ROLE_EDITOR && !manifest.admin?.hiddenNavItems?.includes("comments"),
+		enabled:
+			!isMultiSiteRoot &&
+			role >= ROLE_EDITOR &&
+			!manifest.admin?.hiddenNavItems?.includes("comments"),
 	});
 	const commentBadge = commentCounts?.pending;
 
 	const groups = React.useMemo(
 		() =>
-			resolveNav(
-				buildNavGroups({
-					manifest,
-					pluginAdmins,
-					role,
-					i18n,
-					translate,
-					routeLocale,
-					commentBadge,
-				}),
-				layout.nav,
-			),
-		[manifest, pluginAdmins, role, i18n, translate, routeLocale, commentBadge, layout.nav],
+			isMultiSiteRoot
+				? []
+				: resolveNav(
+						buildNavGroups({
+							manifest,
+							pluginAdmins,
+							role,
+							i18n,
+							translate,
+							routeLocale,
+							commentBadge,
+						}),
+						layout.nav,
+					),
+		[
+			isMultiSiteRoot,
+			manifest,
+			pluginAdmins,
+			role,
+			i18n,
+			translate,
+			routeLocale,
+			commentBadge,
+			layout.nav,
+		],
 	);
 
 	const folders = useFolderState();
@@ -744,7 +762,11 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	return (
 		<KumoSidebar className="emdash-sidebar" aria-label={t`Admin navigation`}>
 			<KumoSidebar.Header className="px-[11px] transition-[padding] duration-(--sidebar-animation-duration) motion-reduce:transition-none group-not-data-[state=collapsed]/sidebar:px-3.5">
-				<SidebarHeaderBrand sites={manifest.sites} admin={manifest.admin} />
+				<SidebarHeaderBrand
+					sites={manifest.sites}
+					admin={manifest.admin}
+					activeSiteId={activeSiteId}
+				/>
 			</KumoSidebar.Header>
 
 			<KumoSidebar.Content>
@@ -769,7 +791,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 						{formatAdminVersion(manifest.version, manifest.commit, manifest.admin?.footerLabel)}
 					</p>
 				</div>
-				<CustomizeSidebarLink />
+				{!isMultiSiteRoot && <CustomizeSidebarLink />}
 			</KumoSidebar.Footer>
 		</KumoSidebar>
 	);
@@ -807,56 +829,46 @@ export interface SidebarSite {
 	name: string;
 }
 
-export const ACTIVE_SITE_STORAGE_KEY = "emdash-active-site";
-
-function readStoredSiteId(): string | null {
-	if (typeof window === "undefined") return null;
-	try {
-		return window.localStorage.getItem(ACTIVE_SITE_STORAGE_KEY);
-	} catch {
-		return null;
-	}
-}
-
-function writeStoredSiteId(siteId: string): void {
-	if (typeof window === "undefined") return;
-	try {
-		window.localStorage.setItem(ACTIVE_SITE_STORAGE_KEY, siteId);
-	} catch {}
-}
-
 export function resolveActiveSite(
 	sites: readonly SidebarSite[],
-	storedSiteId: string | null,
+	activeSiteId: string | null,
 ): SidebarSite | undefined {
-	if (sites.length === 0) return undefined;
-	if (storedSiteId) {
-		const match = sites.find((site) => site.id === storedSiteId);
-		if (match) return match;
-	}
-	return sites[0];
+	if (!activeSiteId || sites.length === 0) return undefined;
+	return sites.find((site) => site.id === activeSiteId);
 }
 
 export function SidebarHeaderBrand({
 	sites,
 	admin,
+	activeSiteId = getActiveAdminSiteId(),
+	onSelectSite,
 }: {
 	sites?: readonly SidebarSite[];
 	admin?: {
 		logo?: string;
 		siteName?: string;
 	};
+	activeSiteId?: string | null;
+	onSelectSite?: (siteId: string) => void;
 }) {
 	const { t } = useLingui();
-	const [storedSiteId, setStoredSiteId] = React.useState<string | null>(readStoredSiteId);
-	const activeSite = sites && sites.length > 1 ? resolveActiveSite(sites, storedSiteId) : undefined;
+	const activeSite = sites && sites.length > 0 ? resolveActiveSite(sites, activeSiteId) : undefined;
 
-	const handleSelectSite = React.useCallback((nextSiteId: string) => {
-		setStoredSiteId(nextSiteId);
-		writeStoredSiteId(nextSiteId);
-	}, []);
+	const handleSelectSite = React.useCallback(
+		(nextSiteId: string) => {
+			if (nextSiteId === activeSite?.id) return;
+			if (onSelectSite) {
+				onSelectSite(nextSiteId);
+				return;
+			}
+			if (typeof window !== "undefined") {
+				window.location.assign(getAdminBasepath(nextSiteId));
+			}
+		},
+		[activeSite?.id, onSelectSite],
+	);
 
-	if (sites && sites.length > 1 && activeSite) {
+	if (activeSite && sites && sites.length > 0) {
 		return (
 			<DropdownMenu>
 				<DropdownMenu.Trigger
@@ -900,12 +912,16 @@ export function SidebarHeaderBrand({
 							))}
 						</DropdownMenu.RadioGroup>
 					</DropdownMenu.Group>
+					<DropdownMenu.Separator />
+					<DropdownMenu.LinkItem href={ADMIN_BASEPATH} className="cursor-pointer">
+						{t`All sites`}
+					</DropdownMenu.LinkItem>
 				</DropdownMenu.Content>
 			</DropdownMenu>
 		);
 	}
 
-	const displaySiteName = admin?.siteName || sites?.[0]?.name || "EmDash";
+	const displaySiteName = admin?.siteName || "EmDash";
 
 	return (
 		<Link

@@ -92,7 +92,7 @@ export function getAnchorHref(
 	return destination;
 }
 
-const KumoRouterLink = React.forwardRef<HTMLAnchorElement, LinkComponentProps>(
+export const KumoRouterLink = React.forwardRef<HTMLAnchorElement, LinkComponentProps>(
 	({ href, to, target, download, children, ...props }, ref) => {
 		const siteId = getActiveAdminSiteId();
 		const destination = href ?? to ?? "";

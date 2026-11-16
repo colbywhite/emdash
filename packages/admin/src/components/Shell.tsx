@@ -6,6 +6,7 @@ import * as React from "react";
 
 import type { AdminManifest } from "../lib/api/client.js";
 import { useCurrentUser } from "../lib/api/current-user";
+import { getActiveAdminSiteId } from "../lib/site-path.js";
 import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
 import { AdminCommandPalette } from "./AdminCommandPalette";
@@ -73,6 +74,7 @@ export function Shell({ children, manifest }: ShellProps) {
 	const { data: user } = useCurrentUser();
 	const { locale } = useLocale();
 	const sidebarSide = getLocaleDir(locale) === "rtl" ? "right" : "left";
+	const isMultiSiteRoot = Boolean(manifest.sites?.length) && !getActiveAdminSiteId();
 	const fullBleed = useMatches({
 		select: (matches) => matches.some((match) => match.staticData.fullBleed),
 	});
@@ -83,7 +85,12 @@ export function Shell({ children, manifest }: ShellProps) {
 			new URL(location.href, "http://emdash.local").searchParams.get("locale") ?? undefined,
 	});
 	const params = (match?.params ?? {}) as Record<string, string>;
-	let pageTitle = match?.staticData.pageTitle ? t(match.staticData.pageTitle) : t`Dashboard`;
+	let pageTitle =
+		isMultiSiteRoot && match?.routeId === "/_admin/"
+			? t`Sites`
+			: match?.staticData.pageTitle
+				? t(match.staticData.pageTitle)
+				: t`Dashboard`;
 	if (params.collection) {
 		pageTitle = manifest.collections[params.collection]?.label ?? pageTitle;
 	} else if (params.taxonomy) {
@@ -190,7 +197,7 @@ export function Shell({ children, manifest }: ShellProps) {
 				)}
 
 				{/* Command palette for quick navigation */}
-				<AdminCommandPalette manifest={manifest} />
+				{!isMultiSiteRoot && <AdminCommandPalette manifest={manifest} />}
 			</Sidebar.Provider>
 		</AdminDocumentTitle>
 	);

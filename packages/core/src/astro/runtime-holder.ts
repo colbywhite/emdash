@@ -6,7 +6,24 @@ import { createInitLock, type InitLock } from "../utils/init-lock.js";
 
 // SSR chunks and the dev-server plugin must share the same runtime and init locks.
 const RUNTIME_HOLDER_KEY = Symbol.for("emdash:runtime-holder");
+const DB_HOLDER_KEY = Symbol.for("emdash:db-cache");
 const store = globalThis as Record<symbol, unknown>;
+
+export function evictCachedDb(db: Kysely<Database>): void {
+	const dbHolder = store[DB_HOLDER_KEY];
+	if (
+		dbHolder &&
+		typeof dbHolder === "object" &&
+		"cache" in dbHolder &&
+		dbHolder.cache instanceof Map
+	) {
+		for (const [key, cached] of dbHolder.cache.entries()) {
+			if (cached === db) {
+				dbHolder.cache.delete(key);
+			}
+		}
+	}
+}
 
 export interface RuntimeSlot {
 	instance: EmDashRuntime | null;
@@ -70,6 +87,9 @@ export async function shutdownRuntime(): Promise<void> {
 	}
 	const adminDb = holder.adminDb;
 	holder.adminDb = null;
+	if (adminDb) {
+		evictCachedDb(adminDb);
+	}
 
 	let firstError: unknown;
 	for (const runtime of runtimes) {

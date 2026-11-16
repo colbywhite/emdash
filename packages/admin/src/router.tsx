@@ -77,6 +77,7 @@ import { TransferSettings } from "./components/settings/TransferSettings";
 import { SetupWizard } from "./components/SetupWizard";
 import { Shell } from "./components/Shell";
 import { SignupPage } from "./components/SignupPage";
+import { SitesOverview } from "./components/SitesOverview";
 import { TaxonomyManager } from "./components/TaxonomyManager";
 import { Widgets } from "./components/Widgets";
 import { WordPressImport } from "./components/WordPressImport";
@@ -166,6 +167,7 @@ import { describeContentValidationError } from "./lib/content-validation-errors"
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
 import { withAutosavedDraft } from "./lib/revision-list-cache.js";
+import { getActiveAdminSiteId } from "./lib/site-path.js";
 import { sanitizeRedirectUrl } from "./lib/url";
 import { usePagedQuery } from "./lib/use-paged-query";
 import { useEntryLock } from "./lib/useEntryLock";
@@ -542,6 +544,10 @@ function DashboardPage() {
 	});
 
 	if (!manifest) return null;
+
+	if (manifest.sites?.length && !getActiveAdminSiteId()) {
+		return <SitesOverview sites={manifest.sites} />;
+	}
 
 	return <Dashboard manifest={manifest} />;
 }

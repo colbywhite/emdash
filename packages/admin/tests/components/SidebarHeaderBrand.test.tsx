@@ -1,7 +1,8 @@
 import { Sidebar } from "@cloudflare/kumo";
 import * as React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import "../../dist/styles.css";
 import { render } from "../utils/render.tsx";
 
 vi.mock("@tanstack/react-router", async () => {
@@ -17,8 +18,7 @@ vi.mock("@tanstack/react-router", async () => {
 	};
 });
 
-const { ACTIVE_SITE_STORAGE_KEY, SidebarHeaderBrand, resolveActiveSite } =
-	await import("../../src/components/Sidebar");
+const { SidebarHeaderBrand, resolveActiveSite } = await import("../../src/components/Sidebar");
 
 function mountHeader(ui: React.ReactNode) {
 	return render(
@@ -37,37 +37,59 @@ describe("resolveActiveSite", () => {
 		{ id: "pink", name: "Pink" },
 	];
 
-	it("returns the matching stored site when present", () => {
+	it("returns the matching site when activeSiteId is present", () => {
 		expect(resolveActiveSite(sites, "purple")).toEqual({ id: "purple", name: "Purple" });
 	});
 
-	it("falls back to the first site when no stored id matches", () => {
-		expect(resolveActiveSite(sites, null)).toEqual({ id: "orange", name: "Orange" });
-		expect(resolveActiveSite(sites, "unknown")).toEqual({ id: "orange", name: "Orange" });
+	it("returns undefined when no activeSiteId matches", () => {
+		expect(resolveActiveSite(sites, null)).toBeUndefined();
+		expect(resolveActiveSite(sites, "unknown")).toBeUndefined();
 	});
 });
 
 describe("SidebarHeaderBrand", () => {
-	beforeEach(() => {
-		localStorage.clear();
+	const originalPath = window.location.pathname + window.location.search + window.location.hash;
+
+	afterEach(() => {
+		window.history.replaceState(null, "", originalPath);
+		document.documentElement.removeAttribute("dir");
+		document.documentElement.removeAttribute("lang");
 	});
 
-	it("renders a dashboard link without a site dropdown when sites is omitted or has one entry", async () => {
+	it("renders a non-dropdown brand link in single-site mode and at multi-site root", async () => {
 		const single = await mountHeader(<SidebarHeaderBrand admin={{ siteName: "My Blog" }} />);
 		await expect
 			.element(single.getByRole("link", { name: /My Blog/ }))
 			.toHaveAttribute("href", "/");
 		expect(single.getByRole("button", { name: /Switch site/ }).query()).toBeNull();
+
+		window.history.replaceState(null, "", "/_emdash/admin");
+		const multiRoot = await mountHeader(
+			<SidebarHeaderBrand
+				sites={[
+					{ id: "orange", name: "Orange Site" },
+					{ id: "purple", name: "Purple Site" },
+				]}
+			/>,
+		);
+		await expect
+			.element(multiRoot.getByRole("link", { name: /EmDash/ }))
+			.toHaveAttribute("href", "/");
+		expect(multiRoot.getByRole("button", { name: /Switch site/ }).query()).toBeNull();
 	});
 
-	it("renders a site switcher dropdown in data-sidebar='header' when multiple sites are configured", async () => {
+	it("drives active site from URL siteId, switches sites, and links back to All sites", async () => {
 		const sites = [
 			{ id: "orange", name: "Orange Site" },
 			{ id: "purple", name: "Purple Site" },
 			{ id: "pink", name: "Pink Site" },
 		];
+		const onSelectSite = vi.fn();
 
-		const screen = await mountHeader(<SidebarHeaderBrand sites={sites} />);
+		window.history.replaceState(null, "", "/_emdash/admin/sites/orange/settings");
+		const screen = await mountHeader(
+			<SidebarHeaderBrand sites={sites} onSelectSite={onSelectSite} />,
+		);
 
 		const trigger = screen.getByRole("button", { name: "Switch site: Orange Site" });
 		await expect.element(trigger).toBeInTheDocument();
@@ -78,16 +100,37 @@ describe("SidebarHeaderBrand", () => {
 		const orangeOption = screen.getByRole("menuitemradio", { name: "Orange Site" });
 		const purpleOption = screen.getByRole("menuitemradio", { name: "Purple Site" });
 		const pinkOption = screen.getByRole("menuitemradio", { name: "Pink Site" });
+		const allSitesLink = screen.getByRole("menuitem", { name: "All sites" });
 
 		await expect.element(orangeOption).toHaveAttribute("aria-checked", "true");
 		await expect.element(purpleOption).toHaveAttribute("aria-checked", "false");
 		await expect.element(pinkOption).toHaveAttribute("aria-checked", "false");
+		await expect.element(allSitesLink).toHaveAttribute("href", "/_emdash/admin");
 
 		await purpleOption.click();
+		expect(onSelectSite).toHaveBeenCalledWith("purple");
+	});
 
-		await expect
-			.element(screen.getByRole("button", { name: "Switch site: Purple Site" }))
-			.toBeInTheDocument();
-		expect(localStorage.getItem(ACTIVE_SITE_STORAGE_KEY)).toBe("purple");
+	it("renders cleanly in RTL (Arabic) mode", async () => {
+		document.documentElement.setAttribute("dir", "rtl");
+		document.documentElement.setAttribute("lang", "ar");
+
+		window.history.replaceState(null, "", "/_emdash/admin/sites/orange");
+		const screen = await mountHeader(
+			<SidebarHeaderBrand
+				sites={[
+					{ id: "orange", name: "Orange Site" },
+					{ id: "purple", name: "Purple Site" },
+				]}
+			/>,
+		);
+
+		const trigger = screen.getByRole("button", { name: "Switch site: Orange Site" });
+		await expect.element(trigger).toBeInTheDocument();
+		expect(getComputedStyle(trigger.element()).direction).toBe("rtl");
+		expect(getComputedStyle(trigger.element()).textAlign).toBe("start");
+		// Verify logical padding in RTL (ps-2.5 = 10px on right, pe-2 = 8px on left)
+		expect(getComputedStyle(trigger.element()).paddingInlineStart).toBe("10px");
+		expect(getComputedStyle(trigger.element()).paddingInlineEnd).toBe("8px");
 	});
 });

@@ -892,11 +892,18 @@ function mapRevisionData(
 // emdash outside of Astro/Vite context (e.g., in astro.config.mjs)
 let virtualConfig:
 	| {
-			database?: { config: unknown };
+			database?: { entrypoint?: string; config: unknown };
+			sites?: Array<{
+				id: string;
+				database: { entrypoint: string; config: unknown };
+			}>;
 			i18n?: I18nConfig | null;
 	  }
 	| undefined;
 let virtualCreateDialect: ((config: unknown) => Dialect) | undefined;
+let virtualDialectsByEntrypoint:
+	| Record<string, { createDialect?: (config: unknown) => Dialect } | undefined>
+	| undefined;
 
 async function loadVirtualConfig() {
 	if (virtualConfig === undefined) {
@@ -909,11 +916,12 @@ async function loadVirtualConfig() {
 
 async function loadVirtualModules() {
 	await loadVirtualConfig();
-	if (virtualCreateDialect === undefined) {
+	if (virtualCreateDialect === undefined && virtualDialectsByEntrypoint === undefined) {
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 		// @ts-ignore - virtual module
 		const dialectModule = await import("virtual:emdash/dialect");
 		virtualCreateDialect = dialectModule.createDialect;
+		virtualDialectsByEntrypoint = dialectModule.dialectsByEntrypoint;
 		// dialectType is no longer needed here — dialect detection is
 		// done via the db adapter instance in dialect-helpers.ts
 	}
@@ -1707,6 +1715,7 @@ export interface EntryFilter {
 
 // Cached database instance (shared across calls)
 let dbInstance: Kysely<Database> | null = null;
+const siteDbInstances = new Map<string, Kysely<Database>>();
 
 /**
  * Get the database instance. Used by query wrapper functions and middleware.
@@ -1726,6 +1735,32 @@ export async function getDb(): Promise<Kysely<Database>> {
 	const ctx = getRequestContext();
 	if (ctx?.db) {
 		return ctx.db as Kysely<Database>; // eslint-disable-line typescript/no-unsafe-type-assertion -- db is typed as unknown in RequestContext to avoid circular deps
+	}
+
+	if (virtualConfig?.sites?.length) {
+		if (!ctx?.site) {
+			throw new Error(
+				"EmDash database cannot be resolved in multi-site mode without an active site context.",
+			);
+		}
+		const existing = siteDbInstances.get(ctx.site.id);
+		if (existing) {
+			return existing;
+		}
+		await loadVirtualModules();
+		const siteDbConfig =
+			virtualConfig.sites.find((s) => s.id === ctx.site!.id)?.database ?? ctx.site.config.database;
+		const createDialect =
+			(siteDbConfig?.entrypoint
+				? virtualDialectsByEntrypoint?.[siteDbConfig.entrypoint]?.createDialect
+				: undefined) ?? virtualCreateDialect;
+		if (!siteDbConfig || typeof createDialect !== "function") {
+			throw new Error(`EmDash database adapter not configured for site "${ctx.site.id}".`);
+		}
+		const dialect = createDialect(siteDbConfig.config);
+		const instance = new Kysely<Database>({ dialect, log: kyselyLogOption() });
+		siteDbInstances.set(ctx.site.id, instance);
+		return instance;
 	}
 
 	if (!dbInstance) {

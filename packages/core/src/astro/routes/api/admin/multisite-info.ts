@@ -140,8 +140,7 @@ export const GET: APIRoute = async ({ locals }) => {
 		const setupVerifiedRaw = store[SETUP_VERIFIED_KEY];
 
 		const adminCacheKey = mode === "multi-site" ? "admin" : "default";
-		const adminLookupKey =
-			mode === "multi-site" ? "admin" : (emdash.config.database?.entrypoint ?? "default");
+		const adminLookupKey = adminCacheKey;
 
 		const adminDb = {
 			initialized: dbCache ? dbCache.has(adminLookupKey) : false,

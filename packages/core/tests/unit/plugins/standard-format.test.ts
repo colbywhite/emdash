@@ -338,7 +338,12 @@ export function createPlugin(options) {
 			const first = firstConfig.plugins();
 			const second = secondConfig.plugins();
 			const runtime = { shutdown: vi.fn(async () => {}) };
-			if (initialized) getRuntimeHolder().instance = runtime as never;
+			if (initialized) {
+				getRuntimeHolder().slots.set("default", {
+					instance: runtime as never,
+					lock: { inFlight: false } as never,
+				});
+			}
 
 			await shutdownRuntime();
 

@@ -312,3 +312,46 @@ describeEachDialect("manifest route saved site logo", (dialect) => {
 		expect(body.data.admin).toBeUndefined();
 	});
 });
+
+describe("manifest route multi-site root guard", () => {
+	it("skips site-specific options queries on adminDb at multi-site root", async () => {
+		const db = await setupTestDatabase();
+		try {
+			const options = new OptionsRepository(db);
+			await options.set("site:title", "Leaked Admin Title");
+			await options.set("site:timezone", "America/Los_Angeles");
+			await options.set("site:staging", true);
+
+			const context = {
+				locals: {
+					emdash: {
+						db,
+						adminDb: db,
+						config: {
+							sites: [{ id: "orange", name: "Orange" }],
+						},
+						getManifest: async () => ({
+							version: "test",
+							hash: "admin",
+							collections: {},
+							plugins: {},
+							taxonomies: [],
+						}),
+					},
+				},
+			} as unknown as APIContext;
+
+			const response = await getManifest(context);
+			expect(response.status).toBe(200);
+			const body = (await response.json()) as ManifestEnvelope & {
+				data: { sites?: Array<{ id: string; name: string }> };
+			};
+			expect(body.data.siteTitle).toBeUndefined();
+			expect(body.data.timezone).toBe("UTC");
+			expect(body.data.staging).toBe(false);
+			expect(body.data.sites).toEqual([{ id: "orange", name: "Orange" }]);
+		} finally {
+			await teardownTestDatabase(db);
+		}
+	});
+});

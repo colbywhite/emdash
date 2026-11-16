@@ -13,7 +13,7 @@ import {
 	linguiMacroPlugin,
 	pathToImportUrl,
 } from "../../../src/astro/integration/vite-config.js";
-import { getRuntimeHolder } from "../../../src/astro/runtime-holder.js";
+import { getRuntimeHolder, getRuntimeSlot } from "../../../src/astro/runtime-holder.js";
 
 // Vite/Rollup type hook fields as `T | { handler: T; order?: ... }`. This
 // plugin always uses the plain-function form, so unwrap that shape to get a
@@ -500,14 +500,16 @@ describe("createViteConfig runtime shutdown plugin", () => {
 				}),
 		);
 		const holder = getRuntimeHolder();
-		holder.instance = { shutdown } as never;
+		const slot = getRuntimeSlot(holder, "default");
+		slot.instance = { shutdown } as never;
 		const server = await createViteTestServer(buildConfig("@astrojs/node"));
 
 		try {
 			const close = server.close();
 			await vi.waitFor(() => expect(shutdown).toHaveBeenCalledTimes(1));
 			expect(getRuntimeHolder()).not.toBe(holder);
-			expect(holder.instance).toBeNull();
+			expect(slot.instance).toBeNull();
+			expect(holder.slots.size).toBe(0);
 			let closed = false;
 			void close.then(() => {
 				closed = true;
@@ -527,7 +529,7 @@ describe("createViteConfig runtime shutdown plugin", () => {
 
 	it("does nothing when no runtime is held", async () => {
 		const holder = getRuntimeHolder();
-		holder.instance = null;
+		holder.slots.clear();
 		const server = await createViteTestServer(buildConfig("@astrojs/node"));
 
 		await expect(server.close()).resolves.toBeUndefined();
@@ -538,7 +540,8 @@ describe("createViteConfig runtime shutdown plugin", () => {
 		const error = new Error("shutdown failed");
 		const shutdown = vi.fn<() => Promise<void>>().mockRejectedValue(error);
 		const holder = getRuntimeHolder();
-		holder.instance = { shutdown } as never;
+		const slot = getRuntimeSlot(holder, "default");
+		slot.instance = { shutdown } as never;
 		const server = await createViteTestServer(buildConfig("@astrojs/node"));
 		const logError = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -547,7 +550,8 @@ describe("createViteConfig runtime shutdown plugin", () => {
 			await server.close();
 			expect(shutdown).toHaveBeenCalledTimes(1);
 			expect(getRuntimeHolder()).not.toBe(holder);
-			expect(holder.instance).toBeNull();
+			expect(slot.instance).toBeNull();
+			expect(holder.slots.size).toBe(0);
 			expect(logError).toHaveBeenCalledWith("[emdash] runtime shutdown failed:", error);
 		} finally {
 			logError.mockRestore();
@@ -560,7 +564,8 @@ describe("createViteConfig runtime shutdown plugin", () => {
 	] as const)("does not execute the shutdown plugin for %s", async (command, adapter) => {
 		const shutdown = vi.fn<() => Promise<void>>();
 		const holder = getRuntimeHolder();
-		holder.instance = { shutdown } as never;
+		const slot = getRuntimeSlot(holder, "default");
+		slot.instance = { shutdown } as never;
 		const server = await createViteTestServer(
 			buildConfig(adapter, command === "build" ? "build" : "dev"),
 		);
@@ -570,7 +575,8 @@ describe("createViteConfig runtime shutdown plugin", () => {
 			expect(shutdown).not.toHaveBeenCalled();
 			expect(getRuntimeHolder()).toBe(holder);
 		} finally {
-			holder.instance = null;
+			slot.instance = null;
+			holder.slots.clear();
 		}
 	});
 });

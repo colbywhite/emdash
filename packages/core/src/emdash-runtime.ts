@@ -501,6 +501,12 @@ export interface RuntimeDependencies {
 	sandboxedPluginEntries: SandboxedPluginEntry[];
 	/** Factory function supplied by the active platform adapter. */
 	createSandboxRunner: SandboxRunnerFactory | null;
+	/** Site ID in multi-site deployments. Undefined in single-site mode. */
+	siteId?: string;
+	/** Cache key override for DbHolder (defaults to `"site:${siteId}"` or `"default"`). */
+	dbCacheKey?: string;
+	/** Shared Admin DB instance in multi-site deployments. */
+	adminDb?: Kysely<Database>;
 	/** Clock used by cron scheduling, task execution, and scheduled publishing. */
 	now?: () => Date;
 	/** Site values supplied by hosts that do not load Astro's virtual config. */
@@ -509,6 +515,44 @@ export interface RuntimeDependencies {
 		url?: string;
 		locale?: string;
 		trailingSlash?: "always" | "never" | "ignore";
+	};
+}
+
+export interface MarketplaceManifestEntry {
+	id: string;
+	version: string;
+	admin?: {
+		pages?: PluginAdminPage[];
+		widgets?: PluginDashboardWidget[];
+		settingsSchema?: Record<string, SettingField>;
+		editorPanels?: PluginManifest["admin"]["editorPanels"];
+		editorActions?: PluginManifest["admin"]["editorActions"];
+	};
+	mcp?: PluginMcpManifestConfig;
+	storage?: PluginManifest["storage"];
+	allowedHosts?: string[];
+	capabilities?: PluginCapability[];
+}
+
+export interface SandboxRuntimeState {
+	sandboxedPluginCache: Map<string, SandboxedPluginInstance>;
+	sandboxedManifestCache: Map<string, PluginManifest>;
+	marketplacePluginKeys: Set<string>;
+	registryPluginKeys: Set<string>;
+	marketplaceManifestCache: Map<string, MarketplaceManifestEntry>;
+	sandboxedRouteMetaCache: Map<string, Map<string, RouteMeta>>;
+	sandboxRunner: SandboxRunner | null;
+}
+
+function createSandboxRuntimeState(): SandboxRuntimeState {
+	return {
+		sandboxedPluginCache: new Map(),
+		sandboxedManifestCache: new Map(),
+		marketplacePluginKeys: new Set(),
+		registryPluginKeys: new Set(),
+		marketplaceManifestCache: new Map(),
+		sandboxedRouteMetaCache: new Map(),
+		sandboxRunner: null,
 	};
 }
 
@@ -526,11 +570,14 @@ export interface RuntimeDependencies {
  * passes for that field as the canonical default.
  */
 export interface EmDashRuntimeParts {
+	siteId?: string;
+	adminDb?: Kysely<Database>;
 	db: Kysely<Database>;
 	storage: Storage | null;
 	configuredPlugins: ResolvedPlugin[];
 	sandboxedPlugins: Map<string, SandboxedPluginInstance>;
 	sandboxedPluginEntries: SandboxedPluginEntry[];
+	sandboxState?: SandboxRuntimeState;
 	hooks: HookPipeline;
 	enabledPlugins: Set<string>;
 	pluginStates: Map<string, string>;
@@ -648,7 +695,7 @@ export const DB_INIT_DEADLINE_MS = MIGRATION_RACE_WAIT_MS + 20_000;
 const DB_HOLDER_KEY = Symbol.for("emdash:db-cache");
 interface DbHolder {
 	cache: Map<string, Kysely<Database>>;
-	lock: InitLock;
+	locks: Map<string, InitLock>;
 	/**
 	 * Recent migration failures, keyed like `cache`. A failed migration is
 	 * near-certain to fail again immediately (schema conflict, broken
@@ -666,15 +713,29 @@ function getDbHolder(): DbHolder {
 	if (!holder) {
 		holder = {
 			cache: new Map<string, Kysely<Database>>(),
-			lock: createInitLock(),
+			locks: new Map<string, InitLock>(),
 			failures: new Map(),
 		};
 		globalSymbolStore[DB_HOLDER_KEY] = holder;
 	}
 	// A holder created by an older copy of this module (dev-server HMR keeps
-	// globalThis across reloads) may predate the failures map.
+	// globalThis across reloads) may predate the failures/locks maps.
 	holder.failures ??= new Map();
+	holder.locks ??= new Map();
 	return holder;
+}
+
+function getDbLock(holder: DbHolder, cacheKey: string): InitLock {
+	let lock = holder.locks.get(cacheKey);
+	if (!lock) {
+		lock = createInitLock();
+		holder.locks.set(cacheKey, lock);
+	}
+	return lock;
+}
+
+function getDatabaseCacheKey(deps: Pick<RuntimeDependencies, "siteId" | "dbCacheKey">): string {
+	return deps.dbCacheKey ?? (deps.siteId ? `site:${deps.siteId}` : "default");
 }
 
 /**
@@ -723,18 +784,30 @@ function autoMigrationContentRowLimit(): number | undefined {
 const SEED_HOLDER_KEY = Symbol.for("emdash:seed-state");
 interface SeedHolder {
 	done: Set<string>;
-	lock: InitLock;
+	locks: Map<string, InitLock>;
 }
 function getSeedHolder(): SeedHolder {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot, written only below
 	let holder = globalSymbolStore[SEED_HOLDER_KEY] as SeedHolder | undefined;
 	if (!holder) {
-		holder = { done: new Set<string>(), lock: createInitLock() };
+		holder = { done: new Set<string>(), locks: new Map() };
 		globalSymbolStore[SEED_HOLDER_KEY] = holder;
 	}
+	holder.locks ??= new Map();
 	return holder;
 }
+
+function getSeedLock(holder: SeedHolder, seedKey: string): InitLock {
+	let lock = holder.locks.get(seedKey);
+	if (!lock) {
+		lock = createInitLock();
+		holder.locks.set(seedKey, lock);
+	}
+	return lock;
+}
+
 const STORAGE_CACHE_KEY = Symbol.for("emdash:storage-cache");
+const STORAGE_ENTRYPOINT_CACHE_KEY = Symbol.for("emdash:storage-cache:entrypoints");
 function getStorageCache(): Map<string, Storage> {
 	const existing = globalSymbolStore[STORAGE_CACHE_KEY];
 	if (existing instanceof Map) {
@@ -746,45 +819,20 @@ function getStorageCache(): Map<string, Storage> {
 	return cache;
 }
 
+function getStorageEntrypointCache(): Map<string, string> {
+	const existing = globalSymbolStore[STORAGE_ENTRYPOINT_CACHE_KEY];
+	if (existing instanceof Map) {
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot, written only below
+		return existing as Map<string, string>;
+	}
+	const cache = new Map<string, string>();
+	globalSymbolStore[STORAGE_ENTRYPOINT_CACHE_KEY] = cache;
+	return cache;
+}
+
 export function getStorageCacheKeys(): string[] {
 	return [...getStorageCache().keys()].toSorted();
 }
-const sandboxedPluginCache = new Map<string, SandboxedPluginInstance>();
-const sandboxedManifestCache = new Map<string, PluginManifest>();
-/**
- * Per-tier sets of `${pluginId}:${version}` keys present in
- * `sandboxedPluginCache`. Used during sync to know which entries belong
- * to which install source so we can invalidate only what belongs to the
- * tier currently being synced.
- */
-const marketplacePluginKeys = new Set<string>();
-const registryPluginKeys = new Set<string>();
-/**
- * Manifest metadata for runtime-installed sandboxed plugins (marketplace
- * and registry both). Keyed by `pluginId`; readers don't care which
- * source the plugin came from. Named `marketplace*` for legacy reasons.
- */
-const marketplaceManifestCache = new Map<
-	string,
-	{
-		id: string;
-		version: string;
-		admin?: {
-			pages?: PluginAdminPage[];
-			widgets?: PluginDashboardWidget[];
-			settingsSchema?: Record<string, SettingField>;
-			editorPanels?: PluginManifest["admin"]["editorPanels"];
-			editorActions?: PluginManifest["admin"]["editorActions"];
-		};
-		mcp?: PluginMcpManifestConfig;
-		storage?: PluginManifest["storage"];
-		allowedHosts?: string[];
-		capabilities?: PluginCapability[];
-	}
->();
-/** Route metadata for sandboxed plugins: pluginId -> routeName -> RouteMeta */
-const sandboxedRouteMetaCache = new Map<string, Map<string, RouteMeta>>();
-let sandboxRunner: SandboxRunner | null = null;
 
 function allowedBrowserImageHosts(
 	capabilities: readonly PluginCapability[],
@@ -806,23 +854,33 @@ function allowedBrowserImageHosts(
  * EmDashRuntime - singleton per worker
  */
 export class EmDashRuntime {
+	readonly siteId?: string;
 	/**
 	 * The singleton database instance (worker-lifetime cached).
 	 * Use the `db` getter instead — it checks the request context first
 	 * for per-request overrides (D1 read replica sessions, DO multi-site).
 	 */
 	private readonly _db: Kysely<Database>;
+	private readonly _adminDb?: Kysely<Database>;
 	/**
 	 * Shared Admin database (users, auth, site metadata). In single-site mode
 	 * this is the same handle as `_db`.
 	 */
 	get adminDb(): Kysely<Database> {
-		return this._db;
+		return this._adminDb ?? this._db;
 	}
-	readonly storage: Storage | null;
+	private readonly _storage: Storage | null;
+	get storage(): Storage | null {
+		const ctx = getRequestContext();
+		if (ctx && "storage" in ctx && ctx.storage !== undefined) {
+			return ctx.storage;
+		}
+		return this._storage;
+	}
 	readonly configuredPlugins: ResolvedPlugin[];
 	readonly sandboxedPlugins: Map<string, SandboxedPluginInstance>;
 	readonly sandboxedPluginEntries: SandboxedPluginEntry[];
+	private readonly sandboxState: SandboxRuntimeState;
 	/**
 	 * Schema registry bound to the current request/event-scoped connection.
 	 * Built per access (SchemaRegistry just wraps a db) against `this.db`, the
@@ -937,11 +995,14 @@ export class EmDashRuntime {
 	}
 
 	constructor(parts: EmDashRuntimeParts) {
+		this.siteId = parts.siteId;
+		this._adminDb = parts.adminDb;
 		this._db = parts.db;
-		this.storage = parts.storage;
+		this._storage = parts.storage;
 		this.configuredPlugins = parts.configuredPlugins;
 		this.sandboxedPlugins = parts.sandboxedPlugins;
 		this.sandboxedPluginEntries = parts.sandboxedPluginEntries;
+		this.sandboxState = parts.sandboxState ?? createSandboxRuntimeState();
 		this._hooks = parts.hooks;
 		this.enabledPlugins = parts.enabledPlugins;
 		this.pluginStates = parts.pluginStates;
@@ -961,7 +1022,7 @@ export class EmDashRuntime {
 	 * Get the sandbox runner instance (for marketplace install/update)
 	 */
 	getSandboxRunner(): SandboxRunner | null {
-		return sandboxRunner;
+		return this.sandboxState.sandboxRunner;
 	}
 
 	/**
@@ -1150,7 +1211,7 @@ export class EmDashRuntime {
 		for (const plugin of this.allPipelinePlugins) {
 			map.set(plugin.id, plugin);
 		}
-		for (const manifest of marketplaceManifestCache.values()) {
+		for (const manifest of this.sandboxState.marketplaceManifestCache.values()) {
 			if (!map.has(manifest.id)) {
 				map.set(manifest.id, manifest);
 			}
@@ -1272,15 +1333,15 @@ export class EmDashRuntime {
 	/** Stop background work and discard loaded sandbox isolates. */
 	async shutdown(): Promise<void> {
 		await this.stopCron();
-		sandboxRunner?.setCommentModerate?.(null);
-		await sandboxRunner?.terminateAll();
-		sandboxRunner = null;
-		sandboxedPluginCache.clear();
-		sandboxedManifestCache.clear();
-		sandboxedRouteMetaCache.clear();
-		marketplaceManifestCache.clear();
-		marketplacePluginKeys.clear();
-		registryPluginKeys.clear();
+		this.sandboxState.sandboxRunner?.setCommentModerate?.(null);
+		await this.sandboxState.sandboxRunner?.terminateAll();
+		this.sandboxState.sandboxRunner = null;
+		this.sandboxState.sandboxedPluginCache.clear();
+		this.sandboxState.sandboxedManifestCache.clear();
+		this.sandboxState.sandboxedRouteMetaCache.clear();
+		this.sandboxState.marketplaceManifestCache.clear();
+		this.sandboxState.marketplacePluginKeys.clear();
+		this.sandboxState.registryPluginKeys.clear();
 	}
 
 	/**
@@ -1389,7 +1450,9 @@ export class EmDashRuntime {
 			if (
 				this.sandboxedPlugins.has(`${plugin.id}:${plugin.version}`) &&
 				(error?.name === "SandboxUnavailableError" ||
-					(error instanceof HookTimeoutError && sandboxRunner && !sandboxRunner.isHealthy()))
+					(error instanceof HookTimeoutError &&
+						this.sandboxState.sandboxRunner &&
+						!this.sandboxState.sandboxRunner.isHealthy()))
 			) {
 				sandboxReadiness = undefined;
 				await this.db
@@ -1425,11 +1488,12 @@ export class EmDashRuntime {
 					try {
 						// Readiness has its own deadline, not the hook's execution budget.
 						await (sandboxReadiness ??=
-							sandboxRunner?.ensureRunning?.({ waitForPendingRestart: true }) ?? Promise.resolve());
-						if (sandboxRunner && !sandboxRunner.isHealthy()) {
+							this.sandboxState.sandboxRunner?.ensureRunning?.({ waitForPendingRestart: true }) ??
+							Promise.resolve());
+						if (this.sandboxState.sandboxRunner && !this.sandboxState.sandboxRunner.isHealthy()) {
 							throw new SandboxUnavailableError(
 								plugin.id,
-								sandboxRunner.unavailableReason?.() ?? "not ready",
+								this.sandboxState.sandboxRunner.unavailableReason?.() ?? "not ready",
 							);
 						}
 					} catch (error) {
@@ -1454,15 +1518,15 @@ export class EmDashRuntime {
 				if (
 					this.sandboxedPlugins.has(`${plugin.id}:${plugin.version}`) &&
 					plugin.hooks["plugin:activate"] &&
-					sandboxRunner &&
-					!sandboxRunner.isHealthy()
+					this.sandboxState.sandboxRunner &&
+					!this.sandboxState.sandboxRunner.isHealthy()
 				) {
 					await recordFailure(
 						plugin,
 						"plugin:activate",
 						new SandboxUnavailableError(
 							plugin.id,
-							sandboxRunner.unavailableReason?.() ?? "not ready",
+							this.sandboxState.sandboxRunner.unavailableReason?.() ?? "not ready",
 						),
 					);
 					continue;
@@ -1579,6 +1643,15 @@ export class EmDashRuntime {
 	 */
 	private async syncSandboxedSourcePlugins(source: "marketplace" | "registry"): Promise<void> {
 		if (!this.storage) return;
+		const {
+			sandboxRunner,
+			sandboxedPluginCache,
+			sandboxedManifestCache,
+			sandboxedRouteMetaCache,
+			marketplaceManifestCache,
+			marketplacePluginKeys,
+			registryPluginKeys,
+		} = this.sandboxState;
 		if (!sandboxRunner || !sandboxRunner.isAvailable()) return;
 
 		const keySet = source === "marketplace" ? marketplacePluginKeys : registryPluginKeys;
@@ -1734,6 +1807,7 @@ export class EmDashRuntime {
 	 */
 	private async syncMarketplacePluginsBypassed(): Promise<void> {
 		if (!this.storage) return;
+		const { marketplaceManifestCache, sandboxedRouteMetaCache } = this.sandboxState;
 		try {
 			const stateRepo = new PluginStateRepository(this.db);
 			const marketplaceStates = await stateRepo.getMarketplacePlugins();
@@ -1911,6 +1985,7 @@ export class EmDashRuntime {
 
 		// Initialize storage (sync)
 		const storage = EmDashRuntime.getStorage(deps);
+		const sandboxState = createSandboxRuntimeState();
 
 		const configuredLocales: string[] =
 			virtualConfig?.i18n?.locales ?? getI18nConfig()?.locales ?? [];
@@ -2191,11 +2266,11 @@ export class EmDashRuntime {
 				await disposeReadDb();
 				throw error;
 			}
-			const seedKey = deps.config.database?.entrypoint ?? "default";
+			const seedKey = deps.siteId ? `site:${deps.siteId}` : "default";
 			const seedHolder = getSeedHolder();
 			try {
 				await initWithLock(
-					seedHolder.lock,
+					getSeedLock(seedHolder, seedKey),
 					() => (seedHolder.done.has(seedKey) ? true : undefined),
 					async () => {
 						const { applySeed } = await import("./seed/apply.js");
@@ -2368,6 +2443,7 @@ export class EmDashRuntime {
 			const marketplaceBypassed = await EmDashRuntime.loadMarketplacePluginsBypassed(
 				storage,
 				installedPluginStates,
+				sandboxState,
 			);
 			for (const plugin of marketplaceBypassed) {
 				allPipelinePlugins.push(plugin);
@@ -2381,7 +2457,7 @@ export class EmDashRuntime {
 
 		// Load sandboxed plugins (build-time, sandbox runner path)
 		const sandboxedPluginPool = await phase("rt.sandbox", "Sandboxed plugins", () =>
-			EmDashRuntime.loadSandboxedPlugins(deps, db, storage, siteInfo),
+			EmDashRuntime.loadSandboxedPlugins(deps, db, sandboxState, storage, siteInfo),
 		);
 		for (const [key, plugin] of sandboxedPluginPool) {
 			const pluginId = key.slice(0, key.lastIndexOf(":"));
@@ -2403,7 +2479,7 @@ export class EmDashRuntime {
 						db,
 						storage,
 						deps,
-						sandboxedPluginPool,
+						sandboxState,
 						installedPluginStates,
 						siteInfo,
 					),
@@ -2420,7 +2496,7 @@ export class EmDashRuntime {
 						db,
 						storage,
 						deps,
-						sandboxedPluginPool,
+						sandboxState,
 						installedPluginStates,
 						siteInfo,
 					),
@@ -2443,7 +2519,7 @@ export class EmDashRuntime {
 		// plugins. The proxy carries only manifest metadata and RPC handlers;
 		// plugin code remains inside the configured runner.
 		for (const [pluginKey, instance] of sandboxedPlugins) {
-			const manifest = sandboxedManifestCache.get(pluginKey);
+			const manifest = sandboxState.sandboxedManifestCache.get(pluginKey);
 			if (!manifest) continue;
 			allPipelinePlugins.push(createSandboxedPluginProxy(manifest, instance));
 			const status = pluginStates.get(manifest.id);
@@ -2566,8 +2642,10 @@ export class EmDashRuntime {
 
 		// Wire email send into sandbox runner (created earlier but without
 		// email pipeline since it didn't exist yet)
-		if (sandboxRunner) {
-			sandboxRunner.setEmailSend((message, pluginId) => emailPipeline.send(message, pluginId));
+		if (sandboxState.sandboxRunner) {
+			sandboxState.sandboxRunner.setEmailSend((message, pluginId) =>
+				emailPipeline.send(message, pluginId),
+			);
 		}
 
 		// ── Cron system ──────────────────────────────────────────────────
@@ -2657,9 +2735,11 @@ export class EmDashRuntime {
 				// Non-fatal — CMS works without cron
 			}
 		});
-		sandboxRunner?.setCronReschedule?.(() => cronScheduler?.reschedule());
+		sandboxState.sandboxRunner?.setCronReschedule?.(() => cronScheduler?.reschedule());
 
 		const runtime = new EmDashRuntime({
+			siteId: deps.siteId,
+			adminDb: deps.adminDb,
 			db,
 			storage,
 			// Include bypassed sandboxed plugins in configuredPlugins so route
@@ -2668,6 +2748,7 @@ export class EmDashRuntime {
 			configuredPlugins: [...deps.plugins, ...bypassedPluginsList],
 			sandboxedPlugins,
 			sandboxedPluginEntries: deps.sandboxedPluginEntries,
+			sandboxState,
 			hooks: pipeline,
 			enabledPlugins,
 			pluginStates,
@@ -2714,14 +2795,14 @@ export class EmDashRuntime {
 		};
 		runtime.pipelineFactoryOptions.contentCreate = contentCreate;
 		pipeline.setContextFactory({ contentCreate });
-		sandboxRunner?.setContentCreate?.(contentCreate);
+		sandboxState.sandboxRunner?.setContentCreate?.(contentCreate);
 		// Hand the constructed instance to the scheduler-cleanup closure so the
 		// timer-driven sweep can fire publish hooks (see runtimeRef above).
 		runtimeRef.current = runtime;
-		sandboxRunner?.setCommentModerate?.((pluginId, id, status, expectedStatus) =>
+		sandboxState.sandboxRunner?.setCommentModerate?.((pluginId, id, status, expectedStatus) =>
 			runtime.handlePluginCommentModerate(pluginId, id, status, expectedStatus),
 		);
-		sandboxRunner?.setContentActions?.(contentActions);
+		sandboxState.sandboxRunner?.setContentActions?.(contentActions);
 
 		if (ownsConfiguredDb && pluginStatesRead) {
 			// A sandbox that failed to load must not consume its first-install guard.
@@ -2769,8 +2850,112 @@ export class EmDashRuntime {
 		const dbConfig = deps.config.database;
 		if (!dbConfig) return false;
 		const holder = getDbHolder();
-		return (
-			!holder.cache.has(dbConfig.entrypoint) && !activeInitFailure(holder, dbConfig.entrypoint)
+		const cacheKey = getDatabaseCacheKey(deps);
+		return !holder.cache.has(cacheKey) && !activeInitFailure(holder, cacheKey);
+	}
+
+	/**
+	 * Open and migrate a configured database by explicit cache key (e.g. `"admin"`).
+	 * Shares the same `DbHolder` cache, per-key `InitLock`, and failure backoff
+	 * as `EmDashRuntime.getDatabase()`.
+	 */
+	static async getOrInitDatabase(
+		deps: Pick<
+			RuntimeDependencies,
+			| "config"
+			| "createDialect"
+			| "createCoalescingDialect"
+			| "migrationMode"
+			| "siteId"
+			| "dbCacheKey"
+		>,
+		options?: { appliedMigrationCount?: number | null },
+	): Promise<Kysely<Database>> {
+		const dbConfig = deps.config.database;
+		if (!dbConfig) {
+			throw new Error("EmDash database not configured.");
+		}
+		const cacheKey = getDatabaseCacheKey(deps);
+		const holder = getDbHolder();
+		const lock = getDbLock(holder, cacheKey);
+
+		const throwIfBackingOff = () => {
+			const failure = activeInitFailure(holder, cacheKey);
+			if (!failure) return;
+			throw new Error(
+				`Database initialization is backing off after a recent migration failure: ${failure.message}`,
+				{ cause: failure.cause },
+			);
+		};
+		throwIfBackingOff();
+
+		return initWithLock(
+			lock,
+			() => holder.cache.get(cacheKey),
+			async (isCurrentClaim) => {
+				throwIfBackingOff();
+
+				let appliedMigrationCount = options?.appliedMigrationCount;
+				let coalescingDb: Kysely<Database> | undefined;
+				if (
+					appliedMigrationCount === undefined &&
+					deps.createCoalescingDialect &&
+					(deps.migrationMode ?? "auto") === "auto"
+				) {
+					try {
+						const coalescingDialect = deps.createCoalescingDialect(dbConfig.config);
+						if (coalescingDialect) {
+							coalescingDb = new Kysely<Database>({
+								dialect: coalescingDialect,
+								log: kyselyLogOption(),
+							});
+							appliedMigrationCount = await getAppliedMigrationCount(coalescingDb).catch(
+								() => undefined,
+							);
+						}
+					} catch {
+						// Ignore and let policy query directly
+					} finally {
+						if (coalescingDb) {
+							await coalescingDb.destroy().catch(() => {});
+						}
+					}
+				}
+
+				const dialect = deps.createDialect(dbConfig.config);
+				const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
+
+				try {
+					await enforceRuntimeMigrationPolicy(db, deps.migrationMode ?? "auto", {
+						contentRowLimit: autoMigrationContentRowLimit(),
+						appliedCount: appliedMigrationCount,
+					});
+				} catch (error) {
+					if (
+						error instanceof MigrationFailedError ||
+						error instanceof MigrationLockHeldError ||
+						error instanceof MigrationRowLimitError
+					) {
+						holder.failures.set(cacheKey, {
+							at: Date.now(),
+							message: error.message,
+							cause: error,
+						});
+					}
+					await db.destroy().catch(() => {});
+					throw error;
+				}
+				holder.failures.delete(cacheKey);
+
+				if (isCurrentClaim()) {
+					holder.cache.set(cacheKey, db);
+				}
+				return db;
+			},
+			{
+				deadlineMs: DB_INIT_DEADLINE_MS,
+				anchor: (promise) => after(() => promise),
+			},
 		);
 	}
 
@@ -2809,97 +2994,7 @@ export class EmDashRuntime {
 			}
 		}
 
-		const cacheKey = dbConfig.entrypoint;
-
-		// Waiters poll the cache rather than sharing the initializing request's
-		// promise: if the request that owns the init is cancelled mid-await
-		// (e.g. client disconnect during cold migrations), a shared promise
-		// never settles — and the owner's `finally` that would clear it never
-		// runs — deadlocking every later request in the isolate. Prevention:
-		// the in-flight init is anchored via after()/waitUntil so a cancelled
-		// owner's init still completes and populates the cache. Net: a stale
-		// lock is reclaimed after a deadline.
-		const holder = getDbHolder();
-
-		const throwIfBackingOff = () => {
-			const failure = activeInitFailure(holder, cacheKey);
-			if (!failure) return;
-			throw new Error(
-				`Database initialization is backing off after a recent migration failure: ${failure.message}`,
-				{ cause: failure.cause },
-			);
-		};
-		throwIfBackingOff();
-
-		return initWithLock(
-			holder.lock,
-			() => holder.cache.get(cacheKey),
-			async (isCurrentClaim) => {
-				// Re-check under the lock: a request that entered the wait loop
-				// before the failure was recorded must not immediately re-run
-				// the failing migration when the lock frees up.
-				throwIfBackingOff();
-
-				const dialect = deps.createDialect(dbConfig.config);
-				const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
-
-				try {
-					await enforceRuntimeMigrationPolicy(db, deps.migrationMode ?? "auto", {
-						contentRowLimit: autoMigrationContentRowLimit(),
-						appliedCount: options?.appliedMigrationCount,
-					});
-				} catch (error) {
-					// Only a failed migration run, a lock its holder left behind, or
-					// content migrations too large for a request back off. Waiting
-					// behind a slow concurrent migrator, pending migrations in check
-					// mode, and errors from the applied-migration check on an
-					// up-to-date database (a lost connection, an unavailable replica)
-					// stay retryable, so the next request tries again.
-					if (
-						error instanceof MigrationFailedError ||
-						error instanceof MigrationLockHeldError ||
-						error instanceof MigrationRowLimitError
-					) {
-						holder.failures.set(cacheKey, {
-							at: Date.now(),
-							message: error.message,
-							cause: error,
-						});
-					}
-					// Every attempt builds a fresh dialect/pool; close it or each
-					// failed init leaks its connection(s) (#1744 observed these
-					// piling up as idle Postgres connections).
-					await db.destroy().catch(() => {});
-					throw error;
-				}
-				holder.failures.delete(cacheKey);
-
-				// Note: legacy installs may carry a stray `emdash:manifest_cache`
-				// row in the options table from versions that persisted a JSON
-				// manifest. The runtime no longer reads or writes it. We do not
-				// proactively delete it: the row is a few hundred bytes of dead
-				// weight and is never on the read path, whereas a one-shot
-				// cleanup-flag check costs an extra `options.get()` on every
-				// isolate cold boot forever. Cheaper to leave it.
-
-				// This returns a migrated but possibly unseeded db; create() runs
-				// the seed gate and applies the seed, batched with its other init
-				// reads.
-
-				// Publish only while still the current owner: a reclaimed slow
-				// init must not flip the cached Kysely identity back after the
-				// reclaimer has published its own. The unpublished instance is
-				// still returned and fully valid for the request that built it.
-				if (isCurrentClaim()) {
-					holder.cache.set(cacheKey, db);
-				}
-				return db;
-			},
-			{
-				deadlineMs: DB_INIT_DEADLINE_MS,
-				anchor: (promise) => after(() => promise),
-			},
-		);
+		return EmDashRuntime.getOrInitDatabase(deps, options);
 	}
 
 	/**
@@ -2912,14 +3007,16 @@ export class EmDashRuntime {
 		}
 
 		const storageCache = getStorageCache();
-		const cacheKey = options?.cacheKey ?? storageConfig.entrypoint;
+		const entrypointCache = getStorageEntrypointCache();
+		const cacheKey = options?.cacheKey ?? (deps.siteId ? `site:${deps.siteId}` : "default");
 		const cached = storageCache.get(cacheKey);
-		if (cached) {
+		if (cached && entrypointCache.get(cacheKey) === storageConfig.entrypoint) {
 			return cached;
 		}
 
 		const storage = deps.createStorage(storageConfig.config);
 		storageCache.set(cacheKey, storage);
+		entrypointCache.set(cacheKey, storageConfig.entrypoint);
 		return storage;
 	}
 
@@ -3007,6 +3104,7 @@ export class EmDashRuntime {
 	private static async loadSandboxedPlugins(
 		deps: RuntimeDependencies,
 		db: Kysely<Database>,
+		sandboxState: SandboxRuntimeState,
 		mediaStorage?: Storage | null,
 		siteInfo?: {
 			siteName?: string;
@@ -3015,14 +3113,15 @@ export class EmDashRuntime {
 			trailingSlash?: "always" | "never" | "ignore";
 		},
 	): Promise<Map<string, SandboxedPluginInstance>> {
+		const { sandboxedPluginCache, sandboxedManifestCache, sandboxedRouteMetaCache } = sandboxState;
 		// Check if sandboxing is enabled
 		if (!deps.sandboxEnabled) {
 			return sandboxedPluginCache;
 		}
 
 		// Create sandbox runner if not exists
-		if (!sandboxRunner && deps.createSandboxRunner) {
-			sandboxRunner = deps.createSandboxRunner(
+		if (!sandboxState.sandboxRunner && deps.createSandboxRunner) {
+			sandboxState.sandboxRunner = deps.createSandboxRunner(
 				createSandboxRunnerOptions(
 					{
 						db,
@@ -3047,6 +3146,7 @@ export class EmDashRuntime {
 			);
 		}
 
+		const { sandboxRunner } = sandboxState;
 		if (!sandboxRunner) {
 			return sandboxedPluginCache;
 		}
@@ -3167,7 +3267,7 @@ export class EmDashRuntime {
 		db: Kysely<Database>,
 		storage: Storage,
 		deps: RuntimeDependencies,
-		cache: Map<string, SandboxedPluginInstance>,
+		sandboxState: SandboxRuntimeState,
 		states: readonly PluginState[],
 		siteInfo?: {
 			siteName?: string;
@@ -3176,10 +3276,18 @@ export class EmDashRuntime {
 			trailingSlash?: "always" | "never" | "ignore";
 		},
 	): Promise<void> {
+		const {
+			sandboxedPluginCache: cache,
+			sandboxedManifestCache,
+			sandboxedRouteMetaCache,
+			marketplaceManifestCache,
+			marketplacePluginKeys,
+			registryPluginKeys,
+		} = sandboxState;
 		// Ensure sandbox runner exists with media storage wired up.
 		// (storage here is the media Storage adapter from the runtime.)
-		if (!sandboxRunner && deps.createSandboxRunner) {
-			sandboxRunner = deps.createSandboxRunner(
+		if (!sandboxState.sandboxRunner && deps.createSandboxRunner) {
+			sandboxState.sandboxRunner = deps.createSandboxRunner(
 				createSandboxRunnerOptions(
 					{
 						db,
@@ -3201,6 +3309,7 @@ export class EmDashRuntime {
 				),
 			);
 		}
+		const { sandboxRunner } = sandboxState;
 		// In sandbox bypass mode, marketplace plugins are loaded in-process
 		// BEFORE pipeline creation by EmDashRuntime.create(). Skip here.
 		if (deps.sandboxBypassed) return;
@@ -3281,7 +3390,9 @@ export class EmDashRuntime {
 	private static async loadMarketplacePluginsBypassed(
 		storage: Storage,
 		states: readonly PluginState[],
+		sandboxState: SandboxRuntimeState,
 	): Promise<ResolvedPlugin[]> {
+		const { marketplaceManifestCache, sandboxedRouteMetaCache } = sandboxState;
 		const resolved: ResolvedPlugin[] = [];
 		const marketplacePlugins = states.filter((state) => state.source === "marketplace");
 		if (marketplacePlugins.length === 0) return resolved;
@@ -3449,7 +3560,9 @@ export class EmDashRuntime {
 	 * callers (the manifest endpoint and an admin SSR template, say).
 	 */
 	getManifest(): Promise<EmDashManifest> {
-		return requestCached("emdash:manifest", () => this._buildManifest());
+		return requestCached(`emdash:manifest:${this.siteId ?? "default"}`, () =>
+			this._buildManifest(),
+		);
 	}
 
 	/**
@@ -3561,7 +3674,7 @@ export class EmDashRuntime {
 		}
 
 		// Add marketplace-installed plugins (dynamically loaded from R2)
-		for (const [pluginId, meta] of marketplaceManifestCache) {
+		for (const [pluginId, meta] of this.sandboxState.marketplaceManifestCache) {
 			// Skip if already included from build-time config
 			if (manifestPlugins[pluginId]) continue;
 
@@ -5788,7 +5901,7 @@ export class EmDashRuntime {
 			};
 		}
 
-		const manifest = marketplaceManifestCache.get(pluginId);
+		const manifest = this.sandboxState.marketplaceManifestCache.get(pluginId);
 		if (!manifest) return null;
 		const pages = (manifest.admin?.pages ?? []).map((page) => normalizePluginPagePath(page.path));
 		const imageHosts = allowedBrowserImageHosts(
@@ -5921,7 +6034,7 @@ export class EmDashRuntime {
 				capabilities = entry.capabilities;
 				allowedHosts = entry.allowedHosts;
 			} else {
-				const manifest = marketplaceManifestCache.get(pluginId);
+				const manifest = this.sandboxState.marketplaceManifestCache.get(pluginId);
 				if (!manifest) return null;
 				panels = manifest.admin?.editorPanels;
 				actions = manifest.admin?.editorActions;
@@ -6016,7 +6129,7 @@ export class EmDashRuntime {
 		}
 
 		// Check sandboxed plugin route metadata cache
-		const meta = sandboxedRouteMetaCache.get(pluginId);
+		const meta = this.sandboxState.sandboxedRouteMetaCache.get(pluginId);
 		if (meta) {
 			const routeMeta = meta.get(routeKey);
 			if (routeMeta) return routeMeta;
@@ -6026,7 +6139,7 @@ export class EmDashRuntime {
 		// that declares admin pages or widgets. This handles plugins installed
 		// from bundles that predate the explicit admin route requirement.
 		if (routeKey === "admin") {
-			const manifestMeta = marketplaceManifestCache.get(pluginId);
+			const manifestMeta = this.sandboxState.marketplaceManifestCache.get(pluginId);
 			if (manifestMeta?.admin?.pages?.length || manifestMeta?.admin?.widgets?.length) {
 				return { public: false };
 			}
@@ -6053,7 +6166,7 @@ export class EmDashRuntime {
 	 * contract of `getPluginSettingsSchema` for build-time plugins.
 	 */
 	getRuntimePluginSettingsSchema(pluginId: string): Record<string, SettingField> | null {
-		const meta = marketplaceManifestCache.get(pluginId);
+		const meta = this.sandboxState.marketplaceManifestCache.get(pluginId);
 		if (!meta) return null;
 		return meta.admin?.settingsSchema ?? {};
 	}
@@ -6283,7 +6396,8 @@ export class EmDashRuntime {
 		};
 
 		for (const entry of this.sandboxedPluginEntries) addManifestTools(entry.id, entry.mcp);
-		for (const [id, manifest] of marketplaceManifestCache) addManifestTools(id, manifest.mcp);
+		for (const [id, manifest] of this.sandboxState.marketplaceManifestCache)
+			addManifestTools(id, manifest.mcp);
 
 		return tools;
 	}

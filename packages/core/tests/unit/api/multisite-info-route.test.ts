@@ -61,13 +61,25 @@ describe("multisite-info route", () => {
 		const holder = getRuntimeHolder() as unknown as {
 			slots?: Map<
 				string,
-				{ instance: { configuredPlugins: unknown[]; sandboxedPluginEntries: unknown[] } }
+				{
+					instance: {
+						configuredPlugins: unknown[];
+						sandboxedPluginEntries: unknown[];
+						shutdown: () => Promise<void>;
+					};
+				}
 			>;
 		};
 		holder.slots = new Map([
 			[
 				"site:orange",
-				{ instance: { configuredPlugins: [{ id: "p1" }], sandboxedPluginEntries: [] } },
+				{
+					instance: {
+						configuredPlugins: [{ id: "p1" }],
+						sandboxedPluginEntries: [],
+						shutdown: async () => {},
+					},
+				},
 			],
 		]);
 

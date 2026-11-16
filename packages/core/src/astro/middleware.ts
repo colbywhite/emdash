@@ -17,7 +17,7 @@ import virtualConfig from "virtual:emdash/config";
 import * as virtualDialectModule from "virtual:emdash/dialect";
 import type { RequestScopedDbOpts } from "virtual:emdash/dialect";
 // @ts-ignore - virtual module
-import { mediaProviders as virtualMediaProviders } from "virtual:emdash/media-providers";
+import * as virtualMediaProvidersModule from "virtual:emdash/media-providers";
 // @ts-ignore - virtual module
 import { plugins as virtualPlugins } from "virtual:emdash/plugins";
 // @ts-ignore - virtual module
@@ -31,6 +31,7 @@ import * as virtualStorageModule from "virtual:emdash/storage";
 
 import { after } from "../after.js";
 import { apiError } from "../api/error.js";
+import { getAuthMode } from "../auth/mode.js";
 import { EmDashConfigurationError } from "../config/errors.js";
 import {
 	createRecorder,
@@ -53,7 +54,7 @@ import {
 	type MediaProviderEntry,
 	type CreateSchedulerFn,
 } from "../emdash-runtime.js";
-import { setI18nConfig } from "../i18n/config.js";
+import { getI18nConfig, setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
 import { matchInternalMediaRef } from "../media/image-endpoint.js";
 import { createPublicMediaUrlResolver } from "../media/url.js";
@@ -62,6 +63,7 @@ import type { PluginContentCacheInvalidator } from "../plugins/routes.js";
 import type { SandboxRunnerFactory } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { invalidateUrlPatternCache } from "../query.js";
+import { getRegistryConfigInput, resolveManifestRegistryConfig } from "../registry/config.js";
 import {
 	createRequestMetrics,
 	getRequestContext,
@@ -73,7 +75,12 @@ import { parseCollectionSitemapName } from "../seo/sitemap-name.js";
 import { EmDashStorageError } from "../storage/types.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import { initWithLock } from "../utils/init-lock.js";
-import type { EmDashConfig } from "./integration/runtime.js";
+import { COMMIT, VERSION } from "../version.js";
+import {
+	type EmDashConfig,
+	type EmDashSiteConfig,
+	resolveSiteConfig,
+} from "./integration/runtime.js";
 import {
 	ASTRO_COOKIES_SYMBOL,
 	coordinateScopedDbLifecycle,
@@ -86,10 +93,10 @@ import {
 	createPublicPluginApiRouteHandler,
 	getPublicPluginRouteMeta,
 } from "./public-plugin-api-routes.js";
-import { getRuntimeHolder } from "./runtime-holder.js";
+import { getRuntimeHolder, getRuntimeSlot } from "./runtime-holder.js";
 import { resolveSessionUser } from "./session-user.js";
 import { type ResolvedActiveSite, resolveSiteForRequest } from "./site-routing.js";
-import type { EmDashHandlers } from "./types.js";
+import type { EmDashHandlers, EmDashManifest } from "./types.js";
 
 // Public type for withEmDashRuntime() consumers (queue/scheduled handlers).
 export type { EmDashRuntime } from "../emdash-runtime.js";
@@ -203,6 +210,64 @@ function getPlugins(): ResolvedPlugin[] {
 	return (typeof plugins === "function" ? plugins() : plugins) || [];
 }
 
+function resolveDialectBundle(entrypoint?: string): Record<string, unknown> | undefined {
+	const dialectsByEp: unknown = Object.hasOwn(virtualDialectModule, "dialectsByEntrypoint")
+		? Reflect.get(virtualDialectModule, "dialectsByEntrypoint")
+		: undefined;
+	const bundle: unknown =
+		entrypoint && typeof dialectsByEp === "object" && dialectsByEp !== null
+			? Reflect.get(dialectsByEp, entrypoint)
+			: undefined;
+	return typeof bundle === "object" && bundle !== null
+		? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual:emdash/dialect exports dialect bundle records
+			(bundle as Record<string, unknown>)
+		: undefined;
+}
+
+function resolveStorageFactory(
+	config: EmDashConfig,
+	entrypoint?: string,
+): ((cfg: Record<string, unknown>) => Storage) | null {
+	const storageModule = virtualStorageModule as Record<string, unknown>;
+	const defaultFactory =
+		typeof storageModule.createStorage === "function"
+			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual:emdash/storage exports createStorage factory
+				(storageModule.createStorage as (cfg: Record<string, unknown>) => Storage)
+			: null;
+	if (!entrypoint) return defaultFactory;
+	const storagesByEp: unknown = Object.hasOwn(virtualStorageModule, "storagesByEntrypoint")
+		? Reflect.get(virtualStorageModule, "storagesByEntrypoint")
+		: undefined;
+	const mappedStorage: unknown =
+		typeof storagesByEp === "object" && storagesByEp !== null
+			? Reflect.get(storagesByEp, entrypoint)
+			: undefined;
+	if (typeof mappedStorage === "function") {
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual:emdash/storage exports createStorage factory functions
+		return mappedStorage as (cfg: Record<string, unknown>) => Storage;
+	}
+	return entrypoint === config.storage?.entrypoint ? defaultFactory : null;
+}
+
+function resolveSiteMediaProviders(siteId?: string): MediaProviderEntry[] {
+	const moduleRecord = virtualMediaProvidersModule as Record<string, unknown>;
+	const defaultEntries = Array.isArray(moduleRecord.mediaProviders)
+		? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual:emdash/media-providers exports MediaProviderEntry[]
+			(moduleRecord.mediaProviders as MediaProviderEntry[])
+		: [];
+	if (!siteId) return defaultEntries;
+	const bySite: unknown = Object.hasOwn(virtualMediaProvidersModule, "mediaProvidersBySite")
+		? Reflect.get(virtualMediaProvidersModule, "mediaProvidersBySite")
+		: undefined;
+	const siteEntries: unknown =
+		typeof bySite === "object" && bySite !== null ? Reflect.get(bySite, siteId) : undefined;
+	if (Array.isArray(siteEntries)) {
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual:emdash/media-providers exports MediaProviderEntry[]
+		return siteEntries as MediaProviderEntry[];
+	}
+	return defaultEntries;
+}
+
 /**
  * Build runtime dependencies from virtual modules
  */
@@ -236,9 +301,158 @@ function buildDependencies(
 		sandboxBypassed: (sandboxModule.sandboxBypassed as boolean) ?? false,
 		sandboxedPluginEntries: (virtualSandboxedPlugins as SandboxedPluginEntry[]) || [],
 		createSandboxRunner: sandboxModule.createSandboxRunner as SandboxRunnerFactory | null,
-		mediaProviderEntries: (virtualMediaProviders as MediaProviderEntry[]) || [],
+		mediaProviderEntries: resolveSiteMediaProviders(),
 	};
 	/* eslint-enable typescript-eslint/no-unsafe-type-assertion */
+}
+
+function resolveSiteMigrationMode(
+	config: EmDashConfig,
+	siteConfig: EmDashSiteConfig,
+	defaultMode: RuntimeMigrationMode,
+): RuntimeMigrationMode {
+	if (!siteConfig.migrations || siteConfig.migrations === config.migrations) {
+		return defaultMode;
+	}
+	const processOverride =
+		typeof process !== "undefined" && process.env ? process.env.EMDASH_MIGRATIONS_MODE : undefined;
+	const importMetaOverride = import.meta.env.EMDASH_MIGRATIONS_MODE;
+	return resolveRuntimeMigrationMode(siteConfig.migrations, {
+		dev: import.meta.env.DEV,
+		override: processOverride ?? importMetaOverride,
+	});
+}
+
+function buildSiteDependencies(
+	config: EmDashConfig,
+	migrationMode: RuntimeMigrationMode,
+	site: ResolvedActiveSite,
+	adminDb: Kysely<Database>,
+): RuntimeDependencies {
+	const baseDeps = buildDependencies(config, migrationMode);
+	const siteConfig = resolveSiteConfig(config, site.config);
+	const dialectBundle = resolveDialectBundle(siteConfig.database.entrypoint);
+	const dialectModule = virtualDialectModule as Record<string, unknown>;
+	/* eslint-disable typescript-eslint/no-unsafe-type-assertion --
+	   Virtual module entries are statically generated by the integration. */
+	const createDialect = (dialectBundle?.createDialect ??
+		dialectModule.createDialect) as RuntimeDependencies["createDialect"];
+	const createCoalescingDialect = (dialectBundle?.createCoalescingDialect ??
+		(siteConfig.database.entrypoint === config.database?.entrypoint
+			? dialectModule.createCoalescingDialect
+			: undefined)) as RuntimeDependencies["createCoalescingDialect"];
+	/* eslint-enable typescript-eslint/no-unsafe-type-assertion */
+	const createStorage = resolveStorageFactory(config, siteConfig.storage?.entrypoint);
+	const siteMigrationMode = resolveSiteMigrationMode(config, siteConfig, migrationMode);
+	return {
+		...baseDeps,
+		siteId: site.id,
+		dbCacheKey: `site:${site.id}`,
+		adminDb,
+		migrationMode: siteMigrationMode,
+		config: {
+			...config,
+			database: siteConfig.database,
+			storage: siteConfig.storage,
+			migrations: siteConfig.migrations,
+			objectCache: siteConfig.objectCache,
+			images: siteConfig.images,
+			mcp: siteConfig.mcp,
+			maxUploadSize: siteConfig.maxUploadSize,
+			imagePlaceholders: siteConfig.imagePlaceholders,
+			mediaProviders: siteConfig.mediaProviders,
+			...(siteConfig.siteUrl ? { siteUrl: siteConfig.siteUrl } : {}),
+		},
+		createDialect,
+		createCoalescingDialect,
+		createStorage,
+		mediaProviderEntries: resolveSiteMediaProviders(site.id),
+	};
+}
+
+/**
+ * Open and migrate the shared admin database without initializing any site runtime.
+ */
+async function getAdminDb(
+	config: EmDashConfig,
+	migrationMode: RuntimeMigrationMode,
+): Promise<Kysely<Database>> {
+	const ctx = getRequestContext();
+	if (ctx?.dbIsIsolated && ctx.db) {
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- db in context is typed as unknown to avoid circular deps
+		return ctx.db as Kysely<Database>;
+	}
+	const holder = getRuntimeHolder();
+	return initWithLock(
+		holder.adminDbLock,
+		() => {
+			if (holder.closed) throw new Error("EmDash dev server has closed");
+			return holder.adminDb;
+		},
+		async (isCurrentClaim) => {
+			if (holder.closed) throw new Error("EmDash dev server has closed");
+			const deps = buildDependencies(config, migrationMode);
+			const db = await EmDashRuntime.getOrInitDatabase({
+				...deps,
+				dbCacheKey: config.sites?.length ? "admin" : "default",
+			});
+			if (holder.closed) {
+				await db.destroy().catch(() => {});
+				throw new Error("EmDash dev server has closed");
+			}
+			if (isCurrentClaim()) {
+				holder.adminDb = db;
+			}
+			return db;
+		},
+		{
+			deadlineMs: RUNTIME_INIT_DEADLINE_MS,
+			anchor: (promise) => after(() => promise),
+		},
+	);
+}
+
+/**
+ * Get or create the runtime instance for a configured site slot.
+ */
+async function getSiteRuntime(
+	config: EmDashConfig,
+	migrationMode: RuntimeMigrationMode,
+	site: ResolvedActiveSite,
+	initTimings?: Array<{ name: string; dur: number; desc?: string }>,
+): Promise<EmDashRuntime> {
+	const holder = getRuntimeHolder();
+	const slot = getRuntimeSlot(holder, `site:${site.id}`);
+	return initWithLock(
+		slot.lock,
+		() => {
+			if (holder.closed) throw new Error("EmDash dev server has closed");
+			return slot.instance;
+		},
+		async (isCurrentClaim) => {
+			if (holder.closed) throw new Error("EmDash dev server has closed");
+			const adminDb = await getAdminDb(config, migrationMode);
+			if (holder.closed) throw new Error("EmDash dev server has closed");
+			const deps = buildSiteDependencies(config, migrationMode, site, adminDb);
+			const runtime = await EmDashRuntime.create(deps, initTimings);
+			if (holder.closed) {
+				await runtime.shutdown();
+				throw new Error("EmDash dev server has closed");
+			}
+			if (isCurrentClaim()) {
+				slot.instance = runtime;
+			} else {
+				runtime.stopCron().catch((error: unknown) => {
+					console.error("[emdash] failed to stop superseded runtime's cron:", error);
+				});
+			}
+			return runtime;
+		},
+		{
+			deadlineMs: RUNTIME_INIT_DEADLINE_MS,
+			anchor: (promise) => after(() => promise),
+		},
+	);
 }
 
 /**
@@ -262,11 +476,12 @@ async function getRuntime(
 	// failing that, the stale lock is reclaimed after a deadline instead of
 	// hanging every subsequent request in the isolate until eviction.
 	const holder = getRuntimeHolder();
+	const slot = getRuntimeSlot(holder, "default");
 	return initWithLock(
-		holder.lock,
+		slot.lock,
 		() => {
 			if (holder.closed) throw new Error("EmDash dev server has closed");
-			return holder.instance;
+			return slot.instance;
 		},
 		async (isCurrentClaim) => {
 			if (holder.closed) throw new Error("EmDash dev server has closed");
@@ -278,7 +493,7 @@ async function getRuntime(
 				throw new Error("EmDash dev server has closed");
 			}
 			if (isCurrentClaim()) {
-				holder.instance = runtime;
+				slot.instance = runtime;
 			} else {
 				// This init was reclaimed mid-flight (it ran past the deadline
 				// and a waiter started its own). Don't overwrite the
@@ -297,6 +512,49 @@ async function getRuntime(
 			anchor: (promise) => after(() => promise),
 		},
 	);
+}
+
+function buildRootManifest(config: EmDashConfig): EmDashManifest {
+	const authMode = getAuthMode(config);
+	const authModeValue = authMode.type === "external" ? authMode.providerType : "passkey";
+	const i18nConfig = virtualConfig?.i18n ?? getI18nConfig();
+	const i18n =
+		i18nConfig && i18nConfig.locales && i18nConfig.locales.length > 1
+			? {
+					defaultLocale: i18nConfig.defaultLocale,
+					locales: i18nConfig.locales,
+					prefixDefaultLocale: i18nConfig.prefixDefaultLocale,
+				}
+			: undefined;
+	const { registry, error: registryConfigurationError } = resolveManifestRegistryConfig(
+		getRegistryConfigInput(config.registry),
+	);
+	const sites = config.sites?.length
+		? config.sites.map((site) => ({ id: site.id, name: site.name }))
+		: undefined;
+	const sandboxModule = virtualSandboxRunnerModule as Record<string, unknown>;
+	const sandboxEnabled =
+		sandboxModule.sandboxEnabled === true && sandboxModule.sandboxBypassed !== true;
+	return {
+		version: VERSION,
+		commit: COMMIT,
+		astroVersion: config.astroVersion,
+		hash: "admin",
+		...(sites ? { sites } : {}),
+		collections: {},
+		plugins: {},
+		taxonomies: [],
+		authMode: authModeValue,
+		i18n,
+		contentLocale: {
+			defaultLocale: i18nConfig?.defaultLocale ?? "en",
+			implicit: i18nConfig === null,
+		},
+		marketplace: !!config.marketplace,
+		sandboxEnabled,
+		registry,
+		registryConfigurationError,
+	};
 }
 
 /**
@@ -645,24 +903,12 @@ function tryGetStorage(
 			const storageConfig = site.config.storage;
 			if (!storageConfig) return null;
 			const baseDeps = buildDependencies(config, migrationMode);
-			const storagesByEp: unknown = Object.hasOwn(virtualStorageModule, "storagesByEntrypoint")
-				? Reflect.get(virtualStorageModule, "storagesByEntrypoint")
-				: undefined;
-			const mappedStorage: unknown =
-				typeof storagesByEp === "object" && storagesByEp !== null
-					? Reflect.get(storagesByEp, storageConfig.entrypoint)
-					: undefined;
-			const createSiteStorage =
-				typeof mappedStorage === "function"
-					? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual:emdash/storage exports createStorage factory functions
-						(mappedStorage as (cfg: Record<string, unknown>) => Storage)
-					: storageConfig.entrypoint === config.storage?.entrypoint
-						? baseDeps.createStorage
-						: null;
+			const createSiteStorage = resolveStorageFactory(config, storageConfig.entrypoint);
 			if (!createSiteStorage) return null;
 			return EmDashRuntime.getStorage(
 				{
 					...baseDeps,
+					siteId: site.id,
 					config: { ...baseDeps.config, storage: storageConfig },
 					createStorage: createSiteStorage,
 				},
@@ -753,17 +999,8 @@ function createRequestScopedDb(
 	type ScopedDbFn = (
 		o: RequestScopedDbOpts,
 	) => { db: Kysely<Database>; commit: () => void; close?: () => void } | null;
-	const dialectsByEp: unknown = Object.hasOwn(virtualDialectModule, "dialectsByEntrypoint")
-		? Reflect.get(virtualDialectModule, "dialectsByEntrypoint")
-		: undefined;
-	const dialectBundle: unknown =
-		entrypoint && typeof dialectsByEp === "object" && dialectsByEp !== null
-			? Reflect.get(dialectsByEp, entrypoint)
-			: undefined;
-	const mappedFn: unknown =
-		typeof dialectBundle === "object" && dialectBundle !== null
-			? Reflect.get(dialectBundle, "createRequestScopedDb")
-			: undefined;
+	const dialectBundle = resolveDialectBundle(entrypoint);
+	const mappedFn: unknown = dialectBundle ? dialectBundle.createRequestScopedDb : undefined;
 	const fnCandidate: unknown =
 		typeof mappedFn === "function"
 			? mappedFn
@@ -971,8 +1208,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			!hasEditCookie &&
 			!hasPreviewToken;
 
+		const isMultiSite = Boolean(config?.sites?.length);
 		if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
 			if (!sessionUser && !playgroundDb) {
+				if (isMultiSite && !activeSite) {
+					return finalizeResponse(await dispatch());
+				}
 				const timings: Array<{ name: string; dur: number; desc?: string }> = [];
 				const mwStart = performance.now();
 
@@ -992,7 +1233,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// requests hit the cached runtime and leave this empty.
 				const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
 				const runtimeInitStart = performance.now();
-				const runtimeInit = config ? getRuntime(config, migrationMode, initSubTimings) : undefined;
+				const runtimeInit = config
+					? activeSite
+						? getSiteRuntime(config, migrationMode, activeSite, initSubTimings)
+						: getRuntime(config, migrationMode, initSubTimings)
+					: undefined;
 				// Awaited below unless the probe fails; then it settles in the background.
 				runtimeInit?.catch(() => {});
 
@@ -1017,7 +1262,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							// same database and would make the visitor wait through a second
 							// timeout. getRuntime anchors it with after(), so it can still
 							// finish for later requests.
-							probeFailed = !getRuntimeHolder().instance;
+							const slotKey = activeSite ? `site:${activeSite.id}` : "default";
+							probeFailed = !getRuntimeHolder().slots.get(slotKey)?.instance;
 							console.error("Setup probe failed (non-fatal):", error);
 						}
 					}
@@ -1179,160 +1425,187 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// instance and `initSubTimings` stays empty.
 				const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
 				let t0 = performance.now();
-				const runtime = await getRuntime(config, migrationMode, initSubTimings);
-				timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
-				// Forward any sub-phase samples so cold-start breakdown is visible
-				// in Server-Timing. Each phase appears prefixed "rt." to distinguish
-				// from the aggregate "rt" timing above.
-				for (const sub of initSubTimings) timings.push(sub);
+				if (isMultiSite && !activeSite) {
+					const adminDb = await getAdminDb(config, migrationMode);
+					timings.push({ name: "rt", dur: performance.now() - t0, desc: "Admin DB init" });
+					markSetupVerified(setupKey);
+					const rootManifest = buildRootManifest(config);
+					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- slim root handlers in multi-site mode avoid booting a site runtime
+					locals.emdash = {
+						get db() {
+							const ctx = getRequestContext();
+							// eslint-disable-next-line typescript/no-unsafe-type-assertion -- ALS db is typed unknown to avoid circular import
+							return (ctx?.db as Kysely<Database> | undefined) ?? adminDb;
+						},
+						get adminDb() {
+							const ctx = getRequestContext();
+							// eslint-disable-next-line typescript/no-unsafe-type-assertion -- ALS db is typed unknown to avoid circular import
+							return (ctx?.db as Kysely<Database> | undefined) ?? adminDb;
+						},
+						storage: null,
+						config,
+						getPublicMediaUrl: providePublicMediaUrl(null),
+						getManifest: async () => rootManifest,
+					} as EmDashHandlers;
+				} else {
+					const runtime = activeSite
+						? await getSiteRuntime(config, migrationMode, activeSite, initSubTimings)
+						: await getRuntime(config, migrationMode, initSubTimings);
+					timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
+					// Forward any sub-phase samples so cold-start breakdown is visible
+					// in Server-Timing. Each phase appears prefixed "rt." to distinguish
+					// from the aggregate "rt" timing above.
+					for (const sub of initSubTimings) timings.push(sub);
 
-				// Runtime initialization has satisfied the effective migration policy.
-				markSetupVerified(setupKey);
+					// Runtime initialization has satisfied the effective migration policy.
+					markSetupVerified(setupKey);
 
-				const activeStorage = activeSite
-					? tryGetStorage(config, migrationMode, activeSite)
-					: config.sites?.length
-						? null
-						: runtime.storage;
+					const activeStorage = activeSite
+						? tryGetStorage(config, migrationMode, activeSite)
+						: config.sites?.length
+							? null
+							: runtime.storage;
 
-				// The manifest is no longer pre-loaded here. It's admin-only
-				// content that public/anonymous requests never read, and
-				// loading it on every request put logged-out hot paths on
-				// the same staleness budget as admin operations. Admin
-				// routes call `emdash.getManifest()` directly.
+					// The manifest is no longer pre-loaded here. It's admin-only
+					// content that public/anonymous requests never read, and
+					// loading it on every request put logged-out hot paths on
+					// the same staleness budget as admin operations. Admin
+					// routes call `emdash.getManifest()` directly.
 
-				// Attach to locals for route handlers
-				locals.emdash = {
-					// Content handlers
-					handleContentList: runtime.handleContentList.bind(runtime),
-					handleContentGet: runtime.handleContentGet.bind(runtime),
-					handleContentAuthors: runtime.handleContentAuthors.bind(runtime),
-					handleContentCreate: runtime.handleContentCreate.bind(runtime),
-					handleContentUpdate: runtime.handleContentUpdate.bind(runtime),
-					handleContentDelete: runtime.handleContentDelete.bind(runtime),
+					// Attach to locals for route handlers
+					locals.emdash = {
+						// Content handlers
+						handleContentList: runtime.handleContentList.bind(runtime),
+						handleContentGet: runtime.handleContentGet.bind(runtime),
+						handleContentAuthors: runtime.handleContentAuthors.bind(runtime),
+						handleContentCreate: runtime.handleContentCreate.bind(runtime),
+						handleContentUpdate: runtime.handleContentUpdate.bind(runtime),
+						handleContentDelete: runtime.handleContentDelete.bind(runtime),
 
-					// Trash handlers
-					handleContentListTrashed: runtime.handleContentListTrashed.bind(runtime),
-					handleContentRestore: runtime.handleContentRestore.bind(runtime),
-					handleContentPermanentDelete: runtime.handleContentPermanentDelete.bind(runtime),
-					handleContentCountTrashed: runtime.handleContentCountTrashed.bind(runtime),
-					handleContentGetIncludingTrashed: runtime.handleContentGetIncludingTrashed.bind(runtime),
+						// Trash handlers
+						handleContentListTrashed: runtime.handleContentListTrashed.bind(runtime),
+						handleContentRestore: runtime.handleContentRestore.bind(runtime),
+						handleContentPermanentDelete: runtime.handleContentPermanentDelete.bind(runtime),
+						handleContentCountTrashed: runtime.handleContentCountTrashed.bind(runtime),
+						handleContentGetIncludingTrashed:
+							runtime.handleContentGetIncludingTrashed.bind(runtime),
 
-					// Duplicate handler
-					handleContentDuplicate: runtime.handleContentDuplicate.bind(runtime),
+						// Duplicate handler
+						handleContentDuplicate: runtime.handleContentDuplicate.bind(runtime),
 
-					// Publishing & Scheduling handlers
-					handleContentPublish: runtime.handleContentPublish.bind(runtime),
-					handleContentUnpublish: runtime.handleContentUnpublish.bind(runtime),
-					handleContentSchedule: runtime.handleContentSchedule.bind(runtime),
-					handleContentUnschedule: runtime.handleContentUnschedule.bind(runtime),
-					handleContentCountScheduled: runtime.handleContentCountScheduled.bind(runtime),
-					handleContentDiscardDraft: runtime.handleContentDiscardDraft.bind(runtime),
-					handleContentCompare: runtime.handleContentCompare.bind(runtime),
-					handleContentTranslations: runtime.handleContentTranslations.bind(runtime),
+						// Publishing & Scheduling handlers
+						handleContentPublish: runtime.handleContentPublish.bind(runtime),
+						handleContentUnpublish: runtime.handleContentUnpublish.bind(runtime),
+						handleContentSchedule: runtime.handleContentSchedule.bind(runtime),
+						handleContentUnschedule: runtime.handleContentUnschedule.bind(runtime),
+						handleContentCountScheduled: runtime.handleContentCountScheduled.bind(runtime),
+						handleContentDiscardDraft: runtime.handleContentDiscardDraft.bind(runtime),
+						handleContentCompare: runtime.handleContentCompare.bind(runtime),
+						handleContentTranslations: runtime.handleContentTranslations.bind(runtime),
 
-					// Media handlers
-					handleMediaList: runtime.handleMediaList.bind(runtime),
-					handleMediaGet: runtime.handleMediaGet.bind(runtime),
-					handleMediaUpload: runtime.handleMediaUpload.bind(runtime),
-					handleMediaCreate: runtime.handleMediaCreate.bind(runtime),
-					handleMediaRegisterUpload: runtime.handleMediaRegisterUpload.bind(runtime),
-					handleMediaUpdate: runtime.handleMediaUpdate.bind(runtime),
-					...(runtime.handleMediaReplaceMetadata
-						? {
-								handleMediaReplaceMetadata: runtime.handleMediaReplaceMetadata.bind(runtime),
-							}
-						: {}),
-					handleMediaDelete: runtime.handleMediaDelete.bind(runtime),
+						// Media handlers
+						handleMediaList: runtime.handleMediaList.bind(runtime),
+						handleMediaGet: runtime.handleMediaGet.bind(runtime),
+						handleMediaUpload: runtime.handleMediaUpload.bind(runtime),
+						handleMediaCreate: runtime.handleMediaCreate.bind(runtime),
+						handleMediaRegisterUpload: runtime.handleMediaRegisterUpload.bind(runtime),
+						handleMediaUpdate: runtime.handleMediaUpdate.bind(runtime),
+						...(runtime.handleMediaReplaceMetadata
+							? {
+									handleMediaReplaceMetadata: runtime.handleMediaReplaceMetadata.bind(runtime),
+								}
+							: {}),
+						handleMediaDelete: runtime.handleMediaDelete.bind(runtime),
 
-					// Comment administration
-					...(runtime.handleCommentModerate
-						? { handleCommentModerate: runtime.handleCommentModerate.bind(runtime) }
-						: {}),
+						// Comment administration
+						...(runtime.handleCommentModerate
+							? { handleCommentModerate: runtime.handleCommentModerate.bind(runtime) }
+							: {}),
 
-					// Revision handlers
-					handleRevisionList: runtime.handleRevisionList.bind(runtime),
-					handleRevisionGet: runtime.handleRevisionGet.bind(runtime),
-					handleRevisionRestore: runtime.handleRevisionRestore.bind(runtime),
+						// Revision handlers
+						handleRevisionList: runtime.handleRevisionList.bind(runtime),
+						handleRevisionGet: runtime.handleRevisionGet.bind(runtime),
+						handleRevisionRestore: runtime.handleRevisionRestore.bind(runtime),
 
-					// Plugin routes
-					handlePluginApiRoute: runtime.handlePluginApiRoute.bind(runtime),
-					getPluginEditorExtension: runtime.getPluginEditorExtension.bind(runtime),
-					getPluginEditorDraftSchema: runtime.getPluginEditorDraftSchema.bind(runtime),
-					handlePublicPluginApiRoute: createPublicPluginApiRouteHandler(runtime),
-					getPublicPluginRouteMeta: (pluginId, path) =>
-						getPublicPluginRouteMeta(runtime, pluginId, path),
-					getPluginRouteMeta: runtime.getPluginRouteMeta.bind(runtime),
-					getPluginMcpTools: runtime.getPluginMcpTools.bind(runtime),
-					getEnabledPluginMcpTools: runtime.getEnabledPluginMcpTools.bind(runtime),
-					serializePluginMcpConsent: runtime.serializePluginMcpConsent.bind(runtime),
-					handlePluginMcpTool: runtime.handlePluginMcpTool.bind(runtime),
-					handlePluginMcpDenied: runtime.handlePluginMcpDenied.bind(runtime),
+						// Plugin routes
+						handlePluginApiRoute: runtime.handlePluginApiRoute.bind(runtime),
+						getPluginEditorExtension: runtime.getPluginEditorExtension.bind(runtime),
+						getPluginEditorDraftSchema: runtime.getPluginEditorDraftSchema.bind(runtime),
+						handlePublicPluginApiRoute: createPublicPluginApiRouteHandler(runtime),
+						getPublicPluginRouteMeta: (pluginId, path) =>
+							getPublicPluginRouteMeta(runtime, pluginId, path),
+						getPluginRouteMeta: runtime.getPluginRouteMeta.bind(runtime),
+						getPluginMcpTools: runtime.getPluginMcpTools.bind(runtime),
+						getEnabledPluginMcpTools: runtime.getEnabledPluginMcpTools.bind(runtime),
+						serializePluginMcpConsent: runtime.serializePluginMcpConsent.bind(runtime),
+						handlePluginMcpTool: runtime.handlePluginMcpTool.bind(runtime),
+						handlePluginMcpDenied: runtime.handlePluginMcpDenied.bind(runtime),
 
-					// Media provider methods
-					getMediaProvider: runtime.getMediaProvider.bind(runtime),
-					getMediaProviderList: runtime.getMediaProviderList.bind(runtime),
+						// Media provider methods
+						getMediaProvider: runtime.getMediaProvider.bind(runtime),
+						getMediaProviderList: runtime.getMediaProviderList.bind(runtime),
 
-					// Page contribution methods (for EmDashHead/EmDashBodyStart/EmDashBodyEnd)
-					collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
-					collectPageFragments: runtime.collectPageFragments.bind(runtime),
+						// Page contribution methods (for EmDashHead/EmDashBodyStart/EmDashBodyEnd)
+						collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
+						collectPageFragments: runtime.collectPageFragments.bind(runtime),
 
-					// Lazy search index health check — search endpoints call this
-					// before querying so a crash-corrupted index gets repaired on
-					// first use rather than stalling every cold start.
-					ensureSearchHealthy: runtime.ensureSearchHealthy.bind(runtime),
+						// Lazy search index health check — search endpoints call this
+						// before querying so a crash-corrupted index gets repaired on
+						// first use rather than stalling every cold start.
+						ensureSearchHealthy: runtime.ensureSearchHealthy.bind(runtime),
 
-					// Direct access (for advanced use cases)
-					storage: activeStorage,
-					// Lazy getter, not an eager snapshot: `locals.emdash` is built
-					// before the per-request scoped db is installed in ALS, so reading
-					// `runtime.db` here would capture the per-isolate singleton. Routes
-					// access `emdash.db` later, during the request, when the scoped db
-					// is active. For a stateless binding (D1) the two are equivalent,
-					// but for a request-bound connection (pg/Hyperdrive) the singleton
-					// belongs to the cold-start request and reusing it from a warm
-					// request hangs on workerd's cross-request I/O guard.
-					get db() {
-						return runtime.db;
-					},
-					get adminDb() {
-						return runtime.adminDb;
-					},
-					getPublicMediaUrl: providePublicMediaUrl(activeStorage, activeSite?.id),
-					hooks: runtime.hooks,
-					email: runtime.email,
-					configuredPlugins: runtime.configuredPlugins,
-					sandboxedPluginEntries: runtime.sandboxedPluginEntries,
+						// Direct access (for advanced use cases)
+						storage: activeStorage,
+						// Lazy getter, not an eager snapshot: `locals.emdash` is built
+						// before the per-request scoped db is installed in ALS, so reading
+						// `runtime.db` here would capture the per-isolate singleton. Routes
+						// access `emdash.db` later, during the request, when the scoped db
+						// is active. For a stateless binding (D1) the two are equivalent,
+						// but for a request-bound connection (pg/Hyperdrive) the singleton
+						// belongs to the cold-start request and reusing it from a warm
+						// request hangs on workerd's cross-request I/O guard.
+						get db() {
+							return runtime.db;
+						},
+						get adminDb() {
+							return runtime.adminDb;
+						},
+						getPublicMediaUrl: providePublicMediaUrl(activeStorage, activeSite?.id),
+						hooks: runtime.hooks,
+						email: runtime.email,
+						configuredPlugins: runtime.configuredPlugins,
+						sandboxedPluginEntries: runtime.sandboxedPluginEntries,
 
-					// Configuration (for checking database type, auth mode, etc.)
-					config,
+						// Configuration (for checking database type, auth mode, etc.)
+						config,
 
-					// Lazy manifest accessor — admin-only consumers call this on
-					// demand. `requestCached` inside `getManifest` dedupes within
-					// a single request.
-					getManifest: runtime.getManifest.bind(runtime),
+						// Lazy manifest accessor — admin-only consumers call this on
+						// demand. `requestCached` inside `getManifest` dedupes within
+						// a single request.
+						getManifest: runtime.getManifest.bind(runtime),
 
-					// Clear the URL pattern cache after schema mutations that
-					// affect collection URL patterns.
-					invalidateUrlPatternCache,
+						// Clear the URL pattern cache after schema mutations that
+						// affect collection URL patterns.
+						invalidateUrlPatternCache,
 
-					// Sandbox runner (for marketplace plugin install/update)
-					getSandboxRunner: runtime.getSandboxRunner.bind(runtime),
-					isSandboxBypassed: runtime.isSandboxBypassed.bind(runtime),
+						// Sandbox runner (for marketplace plugin install/update)
+						getSandboxRunner: runtime.getSandboxRunner.bind(runtime),
+						isSandboxBypassed: runtime.isSandboxBypassed.bind(runtime),
 
-					// Sync marketplace plugin states (after install/update/uninstall)
-					syncMarketplacePlugins: runtime.syncMarketplacePlugins.bind(runtime),
+						// Sync marketplace plugin states (after install/update/uninstall)
+						syncMarketplacePlugins: runtime.syncMarketplacePlugins.bind(runtime),
 
-					// Sync registry plugin states (after install/update/uninstall)
-					syncRegistryPlugins: runtime.syncRegistryPlugins.bind(runtime),
-					runPluginInstallLifecycle: runtime.runPluginInstallLifecycle.bind(runtime),
-					runPluginActivateLifecycle: runtime.runPluginActivateLifecycle.bind(runtime),
-					runPluginUninstallLifecycle: runtime.runPluginUninstallLifecycle.bind(runtime),
-					getRuntimePluginSettingsSchema: runtime.getRuntimePluginSettingsSchema.bind(runtime),
+						// Sync registry plugin states (after install/update/uninstall)
+						syncRegistryPlugins: runtime.syncRegistryPlugins.bind(runtime),
+						runPluginInstallLifecycle: runtime.runPluginInstallLifecycle.bind(runtime),
+						runPluginActivateLifecycle: runtime.runPluginActivateLifecycle.bind(runtime),
+						runPluginUninstallLifecycle: runtime.runPluginUninstallLifecycle.bind(runtime),
+						getRuntimePluginSettingsSchema: runtime.getRuntimePluginSettingsSchema.bind(runtime),
 
-					// Update plugin enabled/disabled status and rebuild hook pipeline
-					setPluginStatus: runtime.setPluginStatus.bind(runtime),
-				};
+						// Update plugin enabled/disabled status and rebuild hook pipeline
+						setPluginStatus: runtime.setPluginStatus.bind(runtime),
+					};
+				}
 			} catch (error) {
 				if (isMigrationRequiredError(error)) {
 					return migrationRequiredErrorResponse(error);

@@ -64,7 +64,8 @@ export const GET: APIRoute = async ({ locals }) => {
 		// (WordPress-style: wp-admin always shows the site name). Precedence:
 		// explicit `admin.siteName` → Site Title (Settings → General) → the title
 		// captured by the setup wizard → the bundled "EmDash" default in the SPA.
-		if (emdash?.db) {
+		const isMultiSiteRoot = Boolean(emdash?.config?.sites?.length) && !getRequestContext()?.site;
+		if (emdash?.db && !isMultiSiteRoot) {
 			try {
 				const options = new OptionsRepository(emdash.db);
 				const titles = await options.getMany<string | boolean>([

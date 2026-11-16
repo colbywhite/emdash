@@ -60,6 +60,7 @@ import { requestCached, setRequestCacheEntry } from "../request-cache.js";
 import { getRequestContext } from "../request-context.js";
 import { BylineSchemaRegistry } from "../schema/byline-registry.js";
 import type { BylineFieldDefinition } from "../schema/types.js";
+import { getSiteScopedHolder } from "../site-cache-key.js";
 import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.js";
 
 interface FieldDefsHolder {
@@ -74,20 +75,15 @@ interface FieldDefsHolder {
 }
 
 const HOLDER_KEY = Symbol.for("emdash:byline-field-defs");
-const g = globalThis as Record<symbol, unknown>;
-const holder: FieldDefsHolder =
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-cache.ts)
-	(g[HOLDER_KEY] as FieldDefsHolder | undefined) ??
-	(() => {
-		const h: FieldDefsHolder = {
-			value: null,
-			hasValue: false,
-			cachedVersion: -1,
-			lock: createInitLock(),
-		};
-		g[HOLDER_KEY] = h;
-		return h;
-	})();
+
+function getFieldDefsHolder(): FieldDefsHolder {
+	return getSiteScopedHolder(HOLDER_KEY, () => ({
+		value: null,
+		hasValue: false,
+		cachedVersion: -1,
+		lock: createInitLock(),
+	}));
+}
 
 const REQUEST_CACHE_KEY_VERSION = "byline-fields-version";
 const REQUEST_CACHE_KEY_DEFS_PREFIX = "byline-field-defs:";
@@ -143,6 +139,7 @@ export async function getBylineFieldDefs(db: Kysely<Database>): Promise<BylineFi
 		// (a cancelled owner would otherwise strand every later byline
 		// hydration on the isolate). The fetch is anchored so a cancelled
 		// originator still drives it to completion and populates the cache.
+		const holder = getFieldDefsHolder();
 		return initWithLock<BylineFieldDefinition[]>(
 			holder.lock,
 			() => (holder.hasValue && holder.cachedVersion === version ? holder.value : null),
@@ -173,11 +170,17 @@ export async function getBylineFieldDefs(db: Kysely<Database>): Promise<BylineFi
  * coordination that lets other isolates see the change.
  */
 export function resetBylineFieldDefsCacheForTests(): void {
-	holder.value = null;
-	holder.hasValue = false;
-	holder.cachedVersion = -1;
-	holder.lock.ownerStartedAt = null;
-	holder.lock.generation = 0;
+	const existing = (globalThis as Record<symbol, unknown>)[HOLDER_KEY];
+	if (existing instanceof Map) {
+		for (const holder of existing.values() as Iterable<FieldDefsHolder>) {
+			holder.value = null;
+			holder.hasValue = false;
+			holder.cachedVersion = -1;
+			holder.lock.ownerStartedAt = null;
+			holder.lock.generation = 0;
+		}
+		existing.clear();
+	}
 	reclaimDeadlineMs = 10_000;
 }
 

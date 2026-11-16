@@ -17,6 +17,7 @@
  */
 
 import { after } from "../after.js";
+import { getActiveSiteKey, getSiteScopedHolder } from "../site-cache-key.js";
 import {
 	createSingleFlightCache,
 	type SingleFlightCache,
@@ -78,27 +79,27 @@ interface RedirectCacheState {
 const REDIRECT_CACHE_TTL_MS = 30_000;
 const REDIRECT_CACHE_MAX_REFRESH_ATTEMPTS = 3;
 const REDIRECT_CACHE_KEY = Symbol.for("emdash:redirect-cache");
-const g = globalThis as Record<symbol, unknown>;
-const cacheState: RedirectCacheState =
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
-	(g[REDIRECT_CACHE_KEY] as RedirectCacheState | undefined) ??
-	(() => {
-		const state: RedirectCacheState = {
+
+function getRedirectCacheState(siteKey = getActiveSiteKey()): RedirectCacheState {
+	return getSiteScopedHolder(
+		REDIRECT_CACHE_KEY,
+		() => ({
 			redirects: null,
 			expiresAt: 0,
 			generation: 0,
 			refresh: createSingleFlightCache<CachedRedirects>(),
 			revalidatingUntil: 0,
-		};
-		g[REDIRECT_CACHE_KEY] = state;
-		return state;
-	})();
+		}),
+		siteKey,
+	);
+}
 
 /**
  * Invalidate the cached redirects (both exact and pattern).
  * Call when redirects are created, updated, or deleted.
  */
-export function invalidateRedirectCache(): void {
+export function invalidateRedirectCache(siteKey = getActiveSiteKey()): void {
+	const cacheState = getRedirectCacheState(siteKey);
 	cacheState.generation++;
 	cacheState.redirects = null;
 	cacheState.expiresAt = 0;
@@ -122,13 +123,20 @@ function compileRedirects(rules: RedirectRuleSet): CachedRedirects {
 	return { version: rules.version, exact, patterns };
 }
 
-function installCachedRedirects(redirects: CachedRedirects): CachedRedirects {
+function installCachedRedirects(
+	cacheState: RedirectCacheState,
+	redirects: CachedRedirects,
+): CachedRedirects {
 	cacheState.redirects = redirects;
 	cacheState.expiresAt = Date.now() + REDIRECT_CACHE_TTL_MS;
 	return cacheState.redirects;
 }
 
-function revalidateInBackground(source: RedirectSource, cached: CachedRedirects): void {
+function revalidateInBackground(
+	cacheState: RedirectCacheState,
+	source: RedirectSource,
+	cached: CachedRedirects,
+): void {
 	const now = Date.now();
 	if (cacheState.revalidatingUntil > now) return;
 	cacheState.revalidatingUntil = now + REDIRECT_CACHE_TTL_MS;
@@ -142,7 +150,7 @@ function revalidateInBackground(source: RedirectSource, cached: CachedRedirects)
 				return;
 			}
 			const loaded = compileRedirects(await source.load());
-			if (generation === cacheState.generation) installCachedRedirects(loaded);
+			if (generation === cacheState.generation) installCachedRedirects(cacheState, loaded);
 		} catch (error) {
 			console.error("[emdash:redirects] revalidating redirects failed:", error);
 		}
@@ -162,6 +170,8 @@ export async function loadCachedRedirects(
 	source: RedirectSource,
 	options: LoadCachedRedirectsOptions = {},
 ): Promise<CachedRedirects> {
+	const siteKey = getActiveSiteKey();
+	const cacheState = getRedirectCacheState(siteKey);
 	let verify = options.verify === true;
 	for (let attempt = 0; attempt < REDIRECT_CACHE_MAX_REFRESH_ATTEMPTS; attempt++) {
 		const cached = cacheState.redirects;
@@ -180,11 +190,11 @@ export async function loadCachedRedirects(
 				}
 				return cached;
 			}
-			if (cacheState.redirects === cached) invalidateRedirectCache();
+			if (cacheState.redirects === cached) invalidateRedirectCache(siteKey);
 			continue;
 		}
 		if (cached) {
-			if (Date.now() >= cacheState.expiresAt) revalidateInBackground(source, cached);
+			if (Date.now() >= cacheState.expiresAt) revalidateInBackground(cacheState, source, cached);
 			return cached;
 		}
 
@@ -196,7 +206,7 @@ export async function loadCachedRedirects(
 		);
 
 		if (generation === cacheState.generation) {
-			return installCachedRedirects(loaded);
+			return installCachedRedirects(cacheState, loaded);
 		}
 
 		if (attempt === REDIRECT_CACHE_MAX_REFRESH_ATTEMPTS - 1) {

@@ -31,6 +31,7 @@ import {
 import type { CacheHint } from "../query.js";
 import { requestCached } from "../request-cache.js";
 import { getRequestContext } from "../request-context.js";
+import { getActiveSiteKey } from "../site-cache-key.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { sanitizeHref } from "../utils/url.js";
 import type { Menu, MenuItem, MenuItemRow } from "./types.js";
@@ -68,7 +69,9 @@ const lastResolvedNamespaces: Map<string, string[]> =
 export async function getMenu(name: string, options: MenuQueryOptions = {}): Promise<Menu | null> {
 	const locale = resolveLocale(options.locale);
 	const trailingSlash = options.trailingSlash ?? (await getHostTrailingSlash());
+	const siteKey = getActiveSiteKey();
 	const key = `${name}:${locale ?? "*"}:${trailingSlash}`;
+	const scopedKey = siteKey === "default" ? key : `${siteKey}:${key}`;
 	return requestCached(`menu:${key}`, async () => {
 		if (!(await isObjectCacheActive())) {
 			return getMenuWithDb(name, await getDb(), { locale, trailingSlash });
@@ -85,7 +88,7 @@ export async function getMenu(name: string, options: MenuQueryOptions = {}): Pro
 			});
 			return { rows, epoch };
 		};
-		const remembered = lastResolvedNamespaces.get(key);
+		const remembered = lastResolvedNamespaces.get(scopedKey);
 		const earlyRead = remembered ? undefined : await readRows();
 		const namespaces =
 			remembered ?? (earlyRead?.rows && resolvedMenuNamespaces(earlyRead.rows.items));
@@ -109,8 +112,8 @@ export async function getMenu(name: string, options: MenuQueryOptions = {}): Pro
 			},
 			cacheable: (value) => value !== null && sameNamespaces(loaded, namespaces),
 		});
-		if (menu) lastResolvedNamespaces.set(key, loaded ?? namespaces);
-		else lastResolvedNamespaces.delete(key);
+		if (menu) lastResolvedNamespaces.set(scopedKey, loaded ?? namespaces);
+		else lastResolvedNamespaces.delete(scopedKey);
 		return menu;
 	});
 }

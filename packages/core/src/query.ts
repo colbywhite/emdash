@@ -61,6 +61,7 @@ import { getRequestContext } from "./request-context.js";
 import { resetRegisteredCollectionsCache } from "./schema/collection-slugs-cache.js";
 import { compileUrlPattern } from "./schema/url-pattern.js";
 import { getEntryTitleField, setEntryTitleField } from "./seo/title-field.js";
+import { getSiteScopedHolder } from "./site-cache-key.js";
 import type { TaxonomyTerm } from "./taxonomies/types.js";
 import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js";
 import {
@@ -1930,15 +1931,10 @@ interface UrlPatternCache {
 }
 
 const URL_PATTERN_CACHE_KEY = Symbol.for("emdash:url-pattern-cache");
-const queryGlobal = globalThis as Record<symbol, unknown>;
-const urlPatternCache: UrlPatternCache =
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
-	(queryGlobal[URL_PATTERN_CACHE_KEY] as UrlPatternCache | undefined) ??
-	(() => {
-		const cache: UrlPatternCache = { patterns: null };
-		queryGlobal[URL_PATTERN_CACHE_KEY] = cache;
-		return cache;
-	})();
+
+function getUrlPatternCache(): UrlPatternCache {
+	return getSiteScopedHolder(URL_PATTERN_CACHE_KEY, () => ({ patterns: null }));
+}
 
 /**
  * Invalidate the cached URL patterns used by resolveEmDashPath.
@@ -1950,7 +1946,7 @@ const urlPatternCache: UrlPatternCache =
  * every schema-mutation path already routes through here.
  */
 export function invalidateUrlPatternCache(): void {
-	urlPatternCache.patterns = null;
+	getUrlPatternCache().patterns = null;
 	resetRegisteredCollectionsCache();
 	invalidateSchemaObjectCache();
 }
@@ -1978,6 +1974,7 @@ export async function resolveEmDashPath<T = Record<string, unknown>>(
 	path: string,
 ): Promise<ResolvePathResult<T> | null> {
 	// Build and cache compiled patterns on first call
+	const urlPatternCache = getUrlPatternCache();
 	let cachedUrlPatterns = urlPatternCache.patterns;
 	if (!cachedUrlPatterns) {
 		const { getDb } = await import("./loader.js");

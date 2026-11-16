@@ -20,6 +20,7 @@ import { RedirectRepository } from "../database/repositories/redirect.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
 import { normalizeSiteSettingsVersion, siteSettingsVersionQuery } from "../settings/version.js";
+import { getSiteScopedHolder } from "../site-cache-key.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import {
@@ -395,15 +396,10 @@ interface RepairState {
 }
 
 const REPAIR_STATE_KEY = Symbol.for("emdash:redirect-artifact-repair");
-const g = globalThis as Record<symbol, unknown>;
-const repairState: RepairState =
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
-	(g[REPAIR_STATE_KEY] as RepairState | undefined) ??
-	(() => {
-		const state: RepairState = { runningUntil: 0 };
-		g[REPAIR_STATE_KEY] = state;
-		return state;
-	})();
+
+function getRepairState(): RepairState {
+	return getSiteScopedHolder(REPAIR_STATE_KEY, () => ({ runningUntil: 0 }));
+}
 
 /**
  * Republishes the artifacts under a database lease so one isolate repairs a
@@ -432,6 +428,7 @@ async function repairRedirectArtifacts(db: Kysely<Database>): Promise<void> {
 }
 
 function scheduleRedirectRepair(db: Kysely<Database>): void {
+	const repairState = getRepairState();
 	const now = Date.now();
 	if (repairState.runningUntil > now) return;
 	const runningUntil = now + REPAIR_LEASE_MS;

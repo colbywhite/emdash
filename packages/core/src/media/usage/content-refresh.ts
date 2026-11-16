@@ -9,6 +9,7 @@ import {
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { isI18nEnabled } from "../../i18n/config.js";
+import { getSiteScopedHolder } from "../../site-cache-key.js";
 import {
 	loadContentMediaUsageFields,
 	type ContentMediaUsageFieldDiscovery,
@@ -980,21 +981,12 @@ export async function withContentUsageCollectionLock<T>(
 }
 
 function getContentUsageLocks(): Map<string, Promise<void>> {
-	const global = globalThis as typeof globalThis & Record<symbol, unknown>;
-	const existing = global[CONTENT_USAGE_LOCKS_KEY];
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot stores only this map
-	if (existing instanceof Map) return existing as Map<string, Promise<void>>;
-	const locks = new Map<string, Promise<void>>();
-	global[CONTENT_USAGE_LOCKS_KEY] = locks;
-	return locks;
+	return getSiteScopedHolder(CONTENT_USAGE_LOCKS_KEY, () => new Map<string, Promise<void>>());
 }
 
 function getContentUsageCollectionLocks(): Map<string, Promise<void>> {
-	const global = globalThis as typeof globalThis & Record<symbol, unknown>;
-	const existing = global[CONTENT_USAGE_COLLECTION_LOCKS_KEY];
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot stores only this map
-	if (existing instanceof Map) return existing as Map<string, Promise<void>>;
-	const locks = new Map<string, Promise<void>>();
-	global[CONTENT_USAGE_COLLECTION_LOCKS_KEY] = locks;
-	return locks;
+	return getSiteScopedHolder(
+		CONTENT_USAGE_COLLECTION_LOCKS_KEY,
+		() => new Map<string, Promise<void>>(),
+	);
 }

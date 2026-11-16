@@ -42,6 +42,7 @@ import { after } from "../after.js";
 import type { Database } from "../database/types.js";
 import { requestCached } from "../request-cache.js";
 import { getRequestContext } from "../request-context.js";
+import { getSiteScopedHolder } from "../site-cache-key.js";
 import {
 	createSingleFlightCache,
 	invalidateSingleFlightCache,
@@ -56,15 +57,13 @@ interface SlugsHolder {
 }
 
 const HOLDER_KEY = Symbol.for("emdash:collection-slugs@2");
-const g = globalThis as Record<symbol, unknown>;
-const holder: SlugsHolder =
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-cache.ts)
-	(g[HOLDER_KEY] as SlugsHolder | undefined) ??
-	(() => {
-		const h: SlugsHolder = { cache: createSingleFlightCache(), fetchedAt: 0 };
-		g[HOLDER_KEY] = h;
-		return h;
-	})();
+
+function getSlugsHolder(): SlugsHolder {
+	return getSiteScopedHolder(HOLDER_KEY, () => ({
+		cache: createSingleFlightCache<Set<string>>(),
+		fetchedAt: 0,
+	}));
+}
 
 const REVALIDATE_WINDOW_MS = 60_000;
 let revalidateWindowMs = REVALIDATE_WINDOW_MS;
@@ -74,7 +73,7 @@ async function fetchSlugs(db: Kysely<Database>): Promise<Set<string>> {
 	return new Set(rows.map((row) => row.slug));
 }
 
-function loadSlugs(db: Kysely<Database>): Promise<Set<string>> {
+function loadSlugs(db: Kysely<Database>, holder: SlugsHolder): Promise<Set<string>> {
 	return singleFlightCached(
 		holder.cache,
 		async () => {
@@ -102,13 +101,14 @@ export async function filterToRegisteredCollections(
 		const slugs = await requestCached("collection-slugs", () => fetchSlugs(db));
 		return collections.filter((slug) => slugs.has(slug));
 	}
-	let slugs = await loadSlugs(db);
+	const holder = getSlugsHolder();
+	let slugs = await loadSlugs(db, holder);
 	let present = collections.filter((slug) => slugs.has(slug));
 	if (present.length < collections.length && Date.now() - holder.fetchedAt > revalidateWindowMs) {
 		// Stamped before the refetch so parallel readers of the stale set skip their own.
 		holder.fetchedAt = Date.now();
 		invalidateSingleFlightCache(holder.cache);
-		slugs = await loadSlugs(db);
+		slugs = await loadSlugs(db, holder);
 		present = collections.filter((slug) => slugs.has(slug));
 	}
 	return present;
@@ -120,6 +120,7 @@ export async function filterToRegisteredCollections(
  * auto-seed gate.
  */
 export function primeRegisteredCollections(slugs: readonly string[]): void {
+	const holder = getSlugsHolder();
 	const { cache } = holder;
 	cache.value = new Set(slugs);
 	cache.hasValue = true;
@@ -133,6 +134,7 @@ export function primeRegisteredCollections(slugs: readonly string[]): void {
  * create/delete). Other isolates converge through bounded revalidation.
  */
 export function resetRegisteredCollectionsCache(): void {
+	const holder = getSlugsHolder();
 	invalidateSingleFlightCache(holder.cache);
 	holder.fetchedAt = 0;
 }
@@ -146,6 +148,7 @@ export function resetRegisteredCollectionsCache(): void {
  * per render.
  */
 export function noteStaleRegisteredCollections(): void {
+	const holder = getSlugsHolder();
 	if (Date.now() - holder.fetchedAt > revalidateWindowMs) {
 		resetRegisteredCollectionsCache();
 	}
@@ -156,7 +159,14 @@ export function noteStaleRegisteredCollections(): void {
  * revalidation window.
  */
 export function resetRegisteredCollectionsCacheForTests(): void {
-	resetRegisteredCollectionsCache();
+	const existing = (globalThis as Record<symbol, unknown>)[HOLDER_KEY];
+	if (existing instanceof Map) {
+		for (const holder of existing.values() as Iterable<SlugsHolder>) {
+			invalidateSingleFlightCache(holder.cache);
+			holder.fetchedAt = 0;
+		}
+		existing.clear();
+	}
 	revalidateWindowMs = REVALIDATE_WINDOW_MS;
 }
 

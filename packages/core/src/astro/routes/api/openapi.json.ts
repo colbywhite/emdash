@@ -11,30 +11,27 @@ import type { APIRoute } from "astro";
 
 import { handleError } from "../../../api/error.js";
 import { generateOpenApiDocument } from "../../../api/openapi/index.js";
+import { getSiteScopedHolder } from "../../../site-cache-key.js";
 
 export const prerender = false;
 
 // Use globalThis with Symbol.for to survive Vite's SSR module duplication
 const OPENAPI_CACHE_KEY = Symbol.for("emdash.openapi.cachedSpec");
 
-function getCachedSpec(): string | null {
-	const val = (globalThis as Record<symbol, unknown>)[OPENAPI_CACHE_KEY];
-	return typeof val === "string" ? val : null;
-}
-
-function setCachedSpec(spec: string): void {
-	(globalThis as Record<symbol, unknown>)[OPENAPI_CACHE_KEY] = spec;
+function getOpenApiCacheHolder(): { spec: string | null } {
+	return getSiteScopedHolder(OPENAPI_CACHE_KEY, () => ({ spec: null }));
 }
 
 export const GET: APIRoute = async ({ locals }) => {
 	const { emdash } = locals;
+	const holder = getOpenApiCacheHolder();
 
-	let spec = getCachedSpec();
+	let spec = holder.spec;
 	if (!spec && emdash) {
 		try {
 			const doc = generateOpenApiDocument({ maxUploadSize: emdash.config.maxUploadSize });
 			spec = JSON.stringify(doc);
-			setCachedSpec(spec);
+			holder.spec = spec;
 		} catch (error) {
 			return handleError(error, "Failed to generate OpenAPI document", "OPENAPI_ERROR");
 		}

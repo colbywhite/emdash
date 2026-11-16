@@ -32,21 +32,21 @@ describe("site-scoped media URLs and active site key", () => {
 	});
 
 	it("parses site-scoped internal media URLs in matchInternalMediaRef and matchInternalMediaKey", () => {
-		expect(matchInternalMediaRef("/_emdash/api/site/orange/media/file/abc123.png")).toEqual({
+		expect(matchInternalMediaRef("/_emdash/api/sites/orange/media/file/abc123.png")).toEqual({
 			siteId: "orange",
 			key: "abc123.png",
 		});
 		expect(
-			matchInternalMediaKey("https://example.com/_emdash/api/site/purple/media/file/img.webp"),
+			matchInternalMediaKey("https://example.com/_emdash/api/sites/purple/media/file/img.webp"),
 		).toBe("img.webp");
-		expect(matchInternalMediaRef("/_emdash/api/site/orange/media/file/../secret")).toBeNull();
+		expect(matchInternalMediaRef("/_emdash/api/sites/orange/media/file/../secret")).toBeNull();
 	});
 
 	it("emits site-scoped media URLs when siteId is set without CDN publicUrl, and preserves CDN publicUrl", () => {
 		expect(localMediaFileUrl("hero.png", "orange")).toBe(
-			"/_emdash/api/site/orange/media/file/hero.png",
+			"/_emdash/api/sites/orange/media/file/hero.png",
 		);
-		expect(storageKeyFromLocalMediaFileUrl("/_emdash/api/site/orange/media/file/hero.png")).toBe(
+		expect(storageKeyFromLocalMediaFileUrl("/_emdash/api/sites/orange/media/file/hero.png")).toBe(
 			"hero.png",
 		);
 		expect(
@@ -55,7 +55,7 @@ describe("site-scoped media URLs and active site key", () => {
 				"hero.png",
 				"orange",
 			),
-		).toBe("/_emdash/api/site/orange/media/file/hero.png");
+		).toBe("/_emdash/api/sites/orange/media/file/hero.png");
 		expect(
 			resolvePublicMediaUrl(
 				{ getPublicUrl: (k: string) => `https://cdn.orange.example.com/${k}` } as never,
@@ -65,12 +65,12 @@ describe("site-scoped media URLs and active site key", () => {
 		).toBe("https://cdn.orange.example.com/hero.png");
 		expect(
 			buildRenderMediaUrl(
-				(key) => `/_emdash/api/site/orange/media/file/${key}`,
+				(key) => `/_emdash/api/sites/orange/media/file/${key}`,
 				{
-					url: "/_emdash/api/site/orange/media/file/hero.png",
+					url: "/_emdash/api/sites/orange/media/file/hero.png",
 				},
 				"orange",
 			),
-		).toBe("/_emdash/api/site/orange/media/file/hero.png");
+		).toBe("/_emdash/api/sites/orange/media/file/hero.png");
 	});
 });

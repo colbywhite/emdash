@@ -115,9 +115,9 @@ describe("multi-site config inheritance and integration helpers", () => {
 			expect.arrayContaining([
 				{ protocol: "https", hostname: "cdn.orange.example.com", pathname: "/assets/**" },
 				{ hostname: "orange.example.com", pathname: "/_emdash/api/media/file/**" },
-				{ hostname: "orange.example.com", pathname: "/_emdash/api/site/orange/media/file/**" },
+				{ hostname: "orange.example.com", pathname: "/_emdash/api/sites/orange/media/file/**" },
 				{ hostname: "admin.example.com", pathname: "/_emdash/api/media/file/**" },
-				{ hostname: "admin.example.com", pathname: "/_emdash/api/site/purple/media/file/**" },
+				{ hostname: "admin.example.com", pathname: "/_emdash/api/sites/purple/media/file/**" },
 			]),
 		);
 	});

@@ -1828,7 +1828,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			mediaId,
 			storageKey,
 			url: this.ctx.props.siteId
-				? `/_emdash/api/site/${this.ctx.props.siteId}/media/file/${storageKey}`
+				? `/_emdash/api/sites/${this.ctx.props.siteId}/media/file/${storageKey}`
 				: `/_emdash/api/media/file/${storageKey}`,
 		};
 	}

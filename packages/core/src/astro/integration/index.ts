@@ -255,7 +255,7 @@ export function buildAllImageRemotePatterns(
 				if (!hostname.includes("*")) {
 					patterns.push({
 						hostname,
-						pathname: `/_emdash/api/site/${site.id}/media/file/**`,
+						pathname: `/_emdash/api/sites/${site.id}/media/file/**`,
 					});
 				}
 			} catch {
@@ -263,7 +263,7 @@ export function buildAllImageRemotePatterns(
 			}
 		}
 		if (command === "dev") {
-			patterns.push({ pathname: `/_emdash/api/site/${site.id}/media/file/**` });
+			patterns.push({ pathname: `/_emdash/api/sites/${site.id}/media/file/**` });
 		}
 	}
 	return dedupeImageRemotePatterns(patterns);

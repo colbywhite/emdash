@@ -305,10 +305,10 @@ describe("multi-site middleware runtime routing", () => {
 	it("boots only the requested site runtime slots lazily and leaves untouched sites uninitialized", async () => {
 		const next = vi.fn(async () => new Response("ok"));
 
-		const orangeCtx = makeContext("/_emdash/api/site/orange/content/pages");
+		const orangeCtx = makeContext("/_emdash/api/sites/orange/content/pages");
 		await (onRequest as unknown as (c: unknown, n: unknown) => Promise<Response>)(orangeCtx, next);
 
-		const purpleCtx = makeContext("/_emdash/api/site/purple/content/pages");
+		const purpleCtx = makeContext("/_emdash/api/sites/purple/content/pages");
 		await (onRequest as unknown as (c: unknown, n: unknown) => Promise<Response>)(purpleCtx, next);
 
 		expect(mockCreateRuntime).toHaveBeenCalledTimes(2);

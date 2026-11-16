@@ -202,7 +202,7 @@ export function isSafeTransformKey(key: string): boolean {
 	return SAFE_STORAGE_KEY.test(key);
 }
 
-const SITE_INTERNAL_MEDIA_RE = /^\/_emdash\/api\/site\/([^/]+)\/media\/file\/(.*)$/;
+const SITE_INTERNAL_MEDIA_RE = /^\/_emdash\/api\/sites\/([^/]+)\/media\/file\/(.*)$/;
 
 export interface InternalMediaRef {
 	key: string;
@@ -211,7 +211,7 @@ export interface InternalMediaRef {
 
 /**
  * Parse an internal EmDash media route URL (`/_emdash/api/media/file/{key}`
- * or `/_emdash/api/site/{siteId}/media/file/{key}`) and return its safe key
+ * or `/_emdash/api/sites/{siteId}/media/file/{key}`) and return its safe key
  * plus optional `siteId`.
  */
 export function matchInternalMediaRef(href: string | null | undefined): InternalMediaRef | null {
@@ -239,7 +239,7 @@ export function matchInternalMediaRef(href: string | null | undefined): Internal
 
 /**
  * If `href` points at the internal EmDash media route
- * (`/_emdash/api/media/file/{key}` or `/_emdash/api/site/{siteId}/media/file/{key}`)
+ * (`/_emdash/api/media/file/{key}` or `/_emdash/api/sites/{siteId}/media/file/{key}`)
  * with a safe key, return the key; otherwise `null`.
  */
 export function matchInternalMediaKey(href: string | null | undefined): string | null {

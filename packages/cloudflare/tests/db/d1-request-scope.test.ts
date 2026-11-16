@@ -97,7 +97,7 @@ describe("D1 request scoping bookmark persistence", () => {
 			isAuthenticated: true,
 			isWrite: false,
 			cookies,
-			url: new URL("https://example.com/_emdash/api/site/orange/content/pages"),
+			url: new URL("https://example.com/_emdash/api/sites/orange/content/pages"),
 		});
 
 		expect(scoped).not.toBeNull();

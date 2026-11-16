@@ -14,11 +14,11 @@ import { INTERNAL_MEDIA_PREFIX } from "./normalize.js";
 // portable-text `asset.url` cannot traverse or reroute on the CDN origin.
 const SAFE_STORAGE_KEY = /^[A-Za-z0-9._-]+$/;
 const QUERY_OR_FRAGMENT = /[?#]/;
-const SITE_INTERNAL_MEDIA_RE = /^\/_emdash\/api\/site\/([^/]+)\/media\/file\/(.*)$/;
+const SITE_INTERNAL_MEDIA_RE = /^\/_emdash\/api\/sites\/([^/]+)\/media\/file\/(.*)$/;
 
 function mediaPrefixForSite(siteId?: string): string {
 	return siteId
-		? `/_emdash/api/site/${encodeURIComponent(siteId)}/media/file/`
+		? `/_emdash/api/sites/${encodeURIComponent(siteId)}/media/file/`
 		: INTERNAL_MEDIA_PREFIX;
 }
 

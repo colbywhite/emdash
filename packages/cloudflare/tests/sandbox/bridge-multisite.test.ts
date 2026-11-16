@@ -207,7 +207,7 @@ describe("multi-site CloudflareSandboxRunner and PluginBridge isolation", () => 
 			"image/png",
 			new Uint8Array([1, 2, 3]).buffer,
 		);
-		expect(uploaded.url).toMatch(/^\/_emdash\/api\/site\/orange\/media\/file\//);
+		expect(uploaded.url).toMatch(/^\/_emdash\/api\/sites\/orange\/media\/file\//);
 		expect((mocks.env.ORANGE_MEDIA as { put: ReturnType<typeof vi.fn> }).put).toHaveBeenCalledTimes(
 			1,
 		);

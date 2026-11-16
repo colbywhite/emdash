@@ -11,8 +11,8 @@ import {
 	resolveSiteConfig,
 } from "./integration/runtime.js";
 
-const ADMIN_SITE_PREFIX = "/_emdash/admin/site/";
-const API_SITE_PREFIX = "/_emdash/api/site/";
+const ADMIN_SITE_PREFIX = "/_emdash/admin/sites/";
+const API_SITE_PREFIX = "/_emdash/api/sites/";
 const DOMAIN_PROOF_PATH = "/_emdash/api/site/domain-proof";
 
 const NON_SITE_SCOPED_API_EXACT = new Set([
@@ -214,7 +214,7 @@ export function resolveSiteForRequest(
 				status: 400,
 				code: "SITE_REQUIRED",
 				message:
-					"Site ID is required for this endpoint when multi-site mode is enabled (use /_emdash/api/site/{siteId}/... or X-EmDash-Site header)",
+					"Site ID is required for this endpoint when multi-site mode is enabled (use /_emdash/api/sites/{siteId}/... or X-EmDash-Site header)",
 			};
 		}
 		return { ok: true };

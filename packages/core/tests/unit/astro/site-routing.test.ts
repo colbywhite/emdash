@@ -24,11 +24,11 @@ const multiSiteConfig = {
 
 describe("site-routing helpers", () => {
 	it("parses admin site paths and leaves root admin paths un-scoped", () => {
-		expect(parseAdminSitePath("/_emdash/admin/site/orange")).toEqual({
+		expect(parseAdminSitePath("/_emdash/admin/sites/orange")).toEqual({
 			siteId: "orange",
 			restPathname: "/_emdash/admin",
 		});
-		expect(parseAdminSitePath("/_emdash/admin/site/orange/content/pages")).toEqual({
+		expect(parseAdminSitePath("/_emdash/admin/sites/orange/content/pages")).toEqual({
 			siteId: "orange",
 			restPathname: "/_emdash/admin/content/pages",
 		});
@@ -37,16 +37,16 @@ describe("site-routing helpers", () => {
 	});
 
 	it("parses and normalizes site-prefixed API paths without misparsing domain-proof", () => {
-		expect(parseSiteApiPath("/_emdash/api/site/orange/manifest")).toEqual({
+		expect(parseSiteApiPath("/_emdash/api/sites/orange/manifest")).toEqual({
 			siteId: "orange",
 			normalizedPathname: "/_emdash/api/manifest",
 		});
-		expect(parseSiteApiPath("/_emdash/api/site/orange/content/pages/123")).toEqual({
+		expect(parseSiteApiPath("/_emdash/api/sites/orange/content/pages/123")).toEqual({
 			siteId: "orange",
 			normalizedPathname: "/_emdash/api/content/pages/123",
 		});
 		expect(parseSiteApiPath("/_emdash/api/site/domain-proof")).toBeNull();
-		expect(normalizeSiteApiPathname("/_emdash/api/site/purple/settings")).toBe(
+		expect(normalizeSiteApiPathname("/_emdash/api/sites/purple/settings")).toBe(
 			"/_emdash/api/settings",
 		);
 		expect(normalizeSiteApiPathname("/_emdash/api/site/domain-proof")).toBe(
@@ -66,7 +66,7 @@ describe("site-routing helpers", () => {
 
 	it("resolves site from URL prefix or X-EmDash-Site header and rejects conflicts/unknowns/missing site", () => {
 		const fromPath = resolveSiteForRequest(
-			"/_emdash/api/site/orange/manifest",
+			"/_emdash/api/sites/orange/manifest",
 			null,
 			multiSiteConfig,
 		);
@@ -84,7 +84,7 @@ describe("site-routing helpers", () => {
 		expect("rewrittenApiPathname" in fromHeader && fromHeader.rewrittenApiPathname).toBeFalsy();
 
 		const matchingBoth = resolveSiteForRequest(
-			"/_emdash/api/site/orange/content/pages",
+			"/_emdash/api/sites/orange/content/pages",
 			"orange",
 			multiSiteConfig,
 		);
@@ -95,20 +95,20 @@ describe("site-routing helpers", () => {
 		});
 
 		const conflict = resolveSiteForRequest(
-			"/_emdash/api/site/pink/content/pages",
+			"/_emdash/api/sites/pink/content/pages",
 			"orange",
 			multiSiteConfig,
 		);
 		expect(conflict).toMatchObject({ ok: false, status: 400, code: "SITE_CONFLICT" });
 
 		const unknownApi = resolveSiteForRequest(
-			"/_emdash/api/site/nope/manifest",
+			"/_emdash/api/sites/nope/manifest",
 			null,
 			multiSiteConfig,
 		);
 		expect(unknownApi).toMatchObject({ ok: false, status: 404, code: "SITE_NOT_FOUND" });
 
-		const unknownAdmin = resolveSiteForRequest("/_emdash/admin/site/nope", null, multiSiteConfig);
+		const unknownAdmin = resolveSiteForRequest("/_emdash/admin/sites/nope", null, multiSiteConfig);
 		expect(unknownAdmin).toMatchObject({ ok: false, status: 404, code: "SITE_NOT_FOUND" });
 
 		const missingSite = resolveSiteForRequest("/_emdash/api/content/pages", null, multiSiteConfig);
@@ -127,11 +127,11 @@ describe("site-routing helpers", () => {
 	});
 
 	it("applies write fence scope identically for site-prefixed API paths", () => {
-		expect(siteWriteFenceScope("POST", "/_emdash/api/site/orange/content/pages")).toEqual({
+		expect(siteWriteFenceScope("POST", "/_emdash/api/sites/orange/content/pages")).toEqual({
 			transfer: true,
 			mediaUsage: true,
 			recordWrite: true,
 		});
-		expect(siteWriteFenceScope("POST", "/_emdash/api/site/orange/admin/users")).toBeNull();
+		expect(siteWriteFenceScope("POST", "/_emdash/api/sites/orange/admin/users")).toBeNull();
 	});
 });

@@ -19,6 +19,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 
 import { apiFetch, type AdminManifest } from "../lib/api/client.js";
 import { useCurrentUser } from "../lib/api/current-user";
+import { getActiveAdminSiteId, getAdminBasepath } from "../lib/site-path.js";
 import {
 	ADMIN_NAV_ICONS,
 	getCollectionNavIcon,
@@ -433,7 +434,7 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 				const path = item.params
 					? item.to.replace(ROUTE_PARAM_REGEX, (_, key) => item.params?.[key] ?? "")
 					: item.to;
-				window.open(`/_emdash/admin${path}`, "_blank");
+				window.open(`${getAdminBasepath(getActiveAdminSiteId())}${path}`, "_blank");
 			} else {
 				// Navigate within the app
 				void navigate({

@@ -7,21 +7,86 @@ import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
 import type { EditorDraftAccessDeclaration } from "../sandboxed-editor-extensions.js";
+import { getActiveAdminSiteId } from "../site-path.js";
 
 export const API_BASE = "/_emdash/api";
+
+const NON_SITE_SCOPED_API_PREFIXES = [
+	"/_emdash/api/setup",
+	"/_emdash/api/auth",
+	"/_emdash/api/oauth",
+	"/_emdash/api/admin/users",
+	"/_emdash/api/admin/api-tokens",
+	"/_emdash/api/admin/oauth-clients",
+	"/_emdash/api/admin/allowed-domains",
+	"/_emdash/api/admin/themes/marketplace",
+	"/_emdash/api/dev",
+	"/_emdash/api/sites",
+];
+
+const NON_SITE_SCOPED_API_EXACT = new Set([
+	"/_emdash/api/health",
+	"/_emdash/api/openapi.json",
+	"/_emdash/api/admin/core-update",
+	"/_emdash/api/typegen",
+	"/_emdash/api/themes/preview",
+	"/_emdash/api/visual-editing/toolbar-labels",
+	"/_emdash/api/visual-editing/action-token",
+]);
+
+function resolveSameOriginApiPathname(input: string | URL | Request): string | null {
+	const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+	const baseOrigin =
+		typeof window !== "undefined" && window.location?.origin
+			? window.location.origin
+			: "http://localhost";
+	try {
+		const parsed = new URL(rawUrl, baseOrigin);
+		if (parsed.origin !== baseOrigin) return null;
+		return parsed.pathname;
+	} catch {
+		return null;
+	}
+}
+
+export function shouldAttachSiteHeader(input: string | URL | Request): boolean {
+	const pathname = resolveSameOriginApiPathname(input);
+	if (!pathname) return false;
+	const normalized =
+		pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+	if (normalized !== "/_emdash/api" && !normalized.startsWith("/_emdash/api/")) {
+		return false;
+	}
+	if (NON_SITE_SCOPED_API_EXACT.has(normalized)) return false;
+	if (
+		NON_SITE_SCOPED_API_PREFIXES.some(
+			(prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`),
+		)
+	) {
+		return false;
+	}
+	return true;
+}
 
 const forbiddenResponseListeners = new Set<() => void>();
 
 /**
  * Fetch wrapper that adds the X-EmDash-Request CSRF protection header
+ * (and X-EmDash-Site when inside a site-scoped admin view)
  * to all requests. All API calls should use this instead of raw fetch().
  */
 export async function apiFetch(
 	input: string | URL | Request,
 	init?: RequestInit,
 ): Promise<Response> {
-	const headers = new Headers(init?.headers);
+	const headers = new Headers(
+		init?.headers ?? (input instanceof Request ? input.headers : undefined),
+	);
 	headers.set("X-EmDash-Request", "1");
+	const siteId = getActiveAdminSiteId();
+	if (siteId && !headers.has("X-EmDash-Site") && shouldAttachSiteHeader(input)) {
+		headers.set("X-EmDash-Site", siteId);
+	}
 	const response = await fetch(input, { ...init, headers });
 	if (response.status === 403) {
 		for (const listener of forbiddenResponseListeners) listener();

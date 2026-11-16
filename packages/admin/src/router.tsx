@@ -3478,11 +3478,11 @@ const routeTree = baseRootRoute.addChildren([
 ]);
 
 // Create router
-export function createAdminRouter(queryClient: QueryClient) {
+export function createAdminRouter(queryClient: QueryClient, basepath = "/_emdash/admin") {
 	return createRouter({
 		routeTree,
 		context: { queryClient },
-		basepath: "/_emdash/admin",
+		basepath,
 		defaultPreload: "intent",
 	});
 }

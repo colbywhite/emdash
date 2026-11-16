@@ -53,7 +53,11 @@ import {
 } from "../lib/api.js";
 import { useCurrentUser } from "../lib/api/current-user.js";
 import { useDebouncedValue } from "../lib/hooks.js";
-import { canonicalMediaProviderId, providerItemToMediaItem } from "../lib/media-utils.js";
+import {
+	canonicalMediaProviderId,
+	localMediaFileUrl,
+	providerItemToMediaItem,
+} from "../lib/media-utils.js";
 import { matchesMimeAllowlist, mimeFromUrl } from "../lib/mime-utils.js";
 import {
 	MediaBrowserFolder,
@@ -171,7 +175,7 @@ function appendUniqueSelections(
 
 function withLocalMediaUrl(item: MediaItem): MediaItem {
 	if (item.url || !item.storageKey) return item;
-	return { ...item, url: `/_emdash/api/media/file/${item.storageKey}` };
+	return { ...item, url: localMediaFileUrl(item.storageKey) };
 }
 
 function probeImageDimensions(

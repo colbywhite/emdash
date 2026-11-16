@@ -4,6 +4,7 @@ import { Image as ImageIcon, ImageBroken, X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
+import { localMediaFileUrl } from "../lib/media-utils.js";
 import { isSafeUrl } from "../lib/url";
 import { MediaPickerModal } from "./MediaPickerModal";
 
@@ -52,7 +53,7 @@ export function BlockKitMediaPickerField({
 		// `/_emdash/api/media/file/` path. Detect local explicitly.
 		const isLocalMedia = item.provider === "local" || !!item.storageKey;
 		const localKey = item.storageKey || item.id;
-		const nextUrl = isLocalMedia && localKey ? `/_emdash/api/media/file/${localKey}` : item.url;
+		const nextUrl = isLocalMedia && localKey ? localMediaFileUrl(localKey) : item.url;
 		if (!nextUrl) return;
 		onChange(actionId, nextUrl);
 	};

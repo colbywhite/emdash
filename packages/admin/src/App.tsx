@@ -21,57 +21,83 @@ import { AdminBrandingProvider, type AdminBranding } from "./lib/admin-branding-
 import { refetchCurrentUserOnForbidden } from "./lib/api/current-user";
 import { AuthProviderProvider, type AuthProviders } from "./lib/auth-provider-context";
 import { PluginAdminProvider, type PluginAdmins } from "./lib/plugin-context";
+import { getActiveAdminSiteId, getAdminBasepath, isAdminSitePath } from "./lib/site-path.js";
 import { getLoadedDateLocale, waitForDateLocale } from "./locales/date-locale.js";
 import { LocaleDirectionProvider } from "./locales/index.js";
 import { KumoTranslationsProvider } from "./locales/KumoTranslationsProvider.js";
 import { createAdminRouter } from "./router";
 
-// Create a query client
-const queryClient = new QueryClient({
-	defaultOptions: {
-		queries: {
-			staleTime: 1000 * 60, // 1 minute
-			retry: 1,
+interface SiteRouterEntry {
+	queryClient: QueryClient;
+	router: ReturnType<typeof createAdminRouter>;
+}
+
+const siteRouterCache = new Map<string, SiteRouterEntry>();
+
+export function getSiteRouterEntry(siteId: string | null): SiteRouterEntry {
+	const cacheKey = siteId ? `site:${siteId}` : "root";
+	const existing = siteRouterCache.get(cacheKey);
+	if (existing) return existing;
+
+	const queryClient = new QueryClient({
+		defaultOptions: {
+			queries: {
+				staleTime: 1000 * 60, // 1 minute
+				retry: 1,
+			},
 		},
-	},
-});
+	});
 
-refetchCurrentUserOnForbidden(queryClient);
+	refetchCurrentUserOnForbidden(queryClient);
 
-// Create the router with query client context
-const router = createAdminRouter(queryClient);
-const ADMIN_BASEPATH = "/_emdash/admin";
+	const router = createAdminRouter(queryClient, getAdminBasepath(siteId));
+	const entry = { queryClient, router };
+	siteRouterCache.set(cacheKey, entry);
+	return entry;
+}
+
 const DATE_LOCALE_BOOT_TIMEOUT_MS = 3000;
 
-export function normalizeAdminHref(href: string): string {
-	if (href === ADMIN_BASEPATH) return "/";
-	if (href.startsWith(`${ADMIN_BASEPATH}/`)) return href.slice(ADMIN_BASEPATH.length);
-	if (href.startsWith(`${ADMIN_BASEPATH}?`) || href.startsWith(`${ADMIN_BASEPATH}#`)) {
-		return `/${href.slice(ADMIN_BASEPATH.length)}`;
+export function normalizeAdminHref(
+	href: string,
+	siteId: string | null = getActiveAdminSiteId(),
+): string {
+	const basepath = getAdminBasepath(siteId);
+	if (!siteId && isAdminSitePath(href)) return "";
+	if (href === basepath) return "/";
+	if (href.startsWith(`${basepath}/`)) return href.slice(basepath.length);
+	if (href.startsWith(`${basepath}?`) || href.startsWith(`${basepath}#`)) {
+		return `/${href.slice(basepath.length)}`;
 	}
 	if (href.startsWith("/_emdash/")) return "";
 	return href;
 }
 
-function getAnchorHref(destination: string, routerDestination: string): string {
+export function getAnchorHref(
+	destination: string,
+	routerDestination: string,
+	siteId: string | null = getActiveAdminSiteId(),
+): string {
 	if (routerDestination.startsWith("/") && !routerDestination.startsWith("//")) {
+		const basepath = getAdminBasepath(siteId);
 		if (
 			routerDestination === "/" ||
 			routerDestination.startsWith("/?") ||
 			routerDestination.startsWith("/#")
 		) {
-			return `${ADMIN_BASEPATH}${routerDestination.slice(1)}`;
+			return `${basepath}${routerDestination.slice(1)}`;
 		}
-		return `${ADMIN_BASEPATH}${routerDestination}`;
+		return `${basepath}${routerDestination}`;
 	}
 	return destination;
 }
 
 const KumoRouterLink = React.forwardRef<HTMLAnchorElement, LinkComponentProps>(
 	({ href, to, target, download, children, ...props }, ref) => {
+		const siteId = getActiveAdminSiteId();
 		const destination = href ?? to ?? "";
 		const hasSearchOrHash = destination.includes("?") || destination.includes("#");
-		const routerDestination = normalizeAdminHref(destination);
+		const routerDestination = normalizeAdminHref(destination, siteId);
 		const isRouterPath = routerDestination.startsWith("/") && !routerDestination.startsWith("//");
 		const shouldUseAnchor = !isRouterPath || hasSearchOrHash || target || download != null;
 		const linkProps = props as LinkComponentProps & {
@@ -84,7 +110,7 @@ const KumoRouterLink = React.forwardRef<HTMLAnchorElement, LinkComponentProps>(
 		if (shouldUseAnchor) {
 			const anchorHref =
 				hasSearchOrHash && !target && download == null
-					? getAnchorHref(destination, routerDestination)
+					? getAnchorHref(destination, routerDestination, siteId)
 					: destination;
 			return (
 				<a ref={ref} href={anchorHref} target={target} download={download} {...props}>
@@ -164,6 +190,12 @@ export function AdminApp({
 		i18n.loadAndActivate({ locale, messages });
 		i18nInitialized.current = true;
 	}
+
+	const activeSiteId = getActiveAdminSiteId();
+	const { queryClient, router } = React.useMemo(
+		() => getSiteRouterEntry(activeSiteId),
+		[activeSiteId],
+	);
 
 	if (!dateLocaleReady) return null;
 

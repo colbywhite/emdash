@@ -1,4 +1,5 @@
 import type { MediaItem, MediaProviderItem } from "./api/media.js";
+import { getActiveAdminSiteId } from "./site-path.js";
 
 export function canonicalMediaProviderId(provider: string | undefined): string {
 	if (!provider) return "local";
@@ -176,6 +177,18 @@ export function createUploadPreviewUrl(file: File): string | undefined {
 
 /** Root-absolute path prefix for locally stored media served by EmDash. */
 const INTERNAL_MEDIA_PREFIX = "/_emdash/api/media/file/";
+const SITE_INTERNAL_MEDIA_PREFIX_RE = /^\/_emdash\/api\/sites\/[^/]+\/media\/file\//;
+
+function mediaPrefixForSite(siteId?: string | null): string {
+	const resolvedSiteId = siteId === undefined ? getActiveAdminSiteId() : siteId;
+	return resolvedSiteId
+		? `/_emdash/api/sites/${encodeURIComponent(resolvedSiteId)}/media/file/`
+		: INTERNAL_MEDIA_PREFIX;
+}
+
+function isInternalMediaUrl(url: string): boolean {
+	return url.startsWith(INTERNAL_MEDIA_PREFIX) || SITE_INTERNAL_MEDIA_PREFIX_RE.test(url);
+}
 
 /**
  * URL of the local media file route for a storage key or media ID.
@@ -191,16 +204,17 @@ const INTERNAL_MEDIA_PREFIX = "/_emdash/api/media/file/";
  * representation as a path segment: the parser collapses `%2e` and `%2e%2e` the same way.
  * Neither is a valid storage key.
  */
-export function localMediaFileUrl(key: string): string {
+export function localMediaFileUrl(key: string, siteId?: string | null): string {
+	const prefix = mediaPrefixForSite(siteId);
 	const segments = key.split("/");
 	if (segments.some((segment) => segment === "" || segment === "." || segment === "..")) {
-		return `${INTERNAL_MEDIA_PREFIX}${encodeURIComponent(key)}`;
+		return `${prefix}${encodeURIComponent(key)}`;
 	}
-	return `${INTERNAL_MEDIA_PREFIX}${segments.map(encodeURIComponent).join("/")}`;
+	return `${prefix}${segments.map(encodeURIComponent).join("/")}`;
 }
 
 export function getMediaPreviewUrl(originalUrl: string, contentHash?: string | null): string {
-	if (!contentHash || !originalUrl.startsWith(INTERNAL_MEDIA_PREFIX)) return originalUrl;
+	if (!contentHash || !isInternalMediaUrl(originalUrl)) return originalUrl;
 	const separator = originalUrl.includes("?") ? "&" : "?";
 	return `${originalUrl}${separator}_emdash_media=${encodeURIComponent(contentHash)}`;
 }
@@ -241,7 +255,7 @@ export function getMediaThumbnailUrl(
 ): string {
 	const previewUrl = getMediaPreviewUrl(originalUrl, contentHash);
 	if (!mimeType.startsWith("image/") || mimeType === "image/svg+xml") return previewUrl;
-	if (!originalUrl.startsWith(INTERNAL_MEDIA_PREFIX)) return previewUrl;
+	if (!isInternalMediaUrl(originalUrl)) return previewUrl;
 
 	// Astro authorizes the media route by absolute origin (see the
 	// `image.remotePatterns` entry the EmDash integration registers), so the

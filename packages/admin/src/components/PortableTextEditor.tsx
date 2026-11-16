@@ -132,6 +132,7 @@ import * as React from "react";
 import { htmlBlockFields } from "../html-block";
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
+import { apiFetch } from "../lib/api/client.js";
 import { fetchMediaItem, uploadMedia } from "../lib/api/media.js";
 import { guardUnsavedInput, revealErrors } from "../lib/dialog-form.js";
 import {
@@ -1569,7 +1570,7 @@ function convertPTBlock(
 				type: "image",
 				attrs: attrsWithPortableTextKey(
 					{
-						src: asset.url || `/_emdash/api/media/file/${asset._ref}`,
+						src: asset.url || localMediaFileUrl(asset._ref),
 						alt: alt || "",
 						title: imageBlock.title || "",
 						caption: Object.hasOwn(imageBlock, "caption")
@@ -3270,11 +3271,10 @@ function DynamicSelect({
 		setLoading(true);
 		void (async () => {
 			try {
-				const res = await fetch(`/_emdash/api/plugins/${pluginId}/${field.optionsRoute}`, {
+				const res = await apiFetch(`/_emdash/api/plugins/${pluginId}/${field.optionsRoute}`, {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
-						"X-EmDash-Request": "1",
 					},
 					body: JSON.stringify({}),
 					signal: controller.signal,

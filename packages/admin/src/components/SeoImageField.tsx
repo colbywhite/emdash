@@ -35,7 +35,7 @@ const toolbarButtonClassName =
 
 function seoImageUrl(item: MediaItem): string {
 	const isLocalProvider = !item.provider || item.provider === "local";
-	return isLocalProvider ? `/_emdash/api/media/file/${item.storageKey || item.id}` : item.url;
+	return isLocalProvider ? localMediaFileUrl(item.storageKey || item.id) : item.url;
 }
 
 export function SeoImageField({ seo, onChange }: SeoImageFieldProps) {
